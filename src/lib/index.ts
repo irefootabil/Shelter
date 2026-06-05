@@ -11,3 +11,5 @@ export {
   isRomaniaCoordinate,
 } from "./geo";
 export type { CardinalDirection, Coordinate, CoordinateBounds } from "./geo";
+export { rankShelters } from "./ranking";
+export type { RankedShelter, ShelterRanking, ShelterRankingOptions } from "./ranking";

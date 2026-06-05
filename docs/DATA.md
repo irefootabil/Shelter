@@ -57,9 +57,11 @@ Keep raw Romanian status/type labels available only if needed for display or dia
 
 - Primary recommendation prefers the nearest `functional` shelter.
 - If no functional shelter is available in the considered set, use nearest `partial`.
-- Use `nonfunctional` as primary only when no better shelter is available.
+- If no functional or partial shelter is available, use nearest `unknown`.
+- Use `nonfunctional` as primary only when no better status is available.
 - The nearest list may include all statuses but must visibly mark nonfunctional shelters.
 - Distance sorting uses Haversine distance from the current effective location.
+- Ranking helpers return distance values in meters for later Romanian UI formatting.
 
 ## Coordinate Contracts
 

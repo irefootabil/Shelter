@@ -49,3 +49,6 @@ The app is a static Vite React TypeScript PWA. All required v1 data and content 
 - GPS may be unavailable, denied, stale, or inaccurate.
 - Compass APIs vary across iOS and Android.
 - Compass must be treated as secondary to text direction and shelter details.
+- `useCompass` listens to `deviceorientation` when available and exposes a separate explicit permission request action for iOS-style `DeviceOrientationEvent.requestPermission`.
+- Compass readings prefer `webkitCompassHeading` when present, fall back to normalized `alpha` heading, smooth wraparound changes, and surface browser-provided accuracy as a calibration signal.
+- If orientation APIs are missing, denied, or do not include usable heading values, the app must keep working with text directions and shelter details.

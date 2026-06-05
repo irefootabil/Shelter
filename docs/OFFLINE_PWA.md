@@ -18,12 +18,22 @@
 - Icons.
 - Any local fonts or static images used by v1.
 
+The service worker lives at `public/sw.js`. It precaches the fixed core assets and parses the built `index.html`
+during install to discover Vite-generated `/assets/...` files. Vendored shelter data and emergency content are
+bundled into those generated JavaScript assets, so they are cached through the discovered build asset list.
+
 ## Runtime Strategy
 
 - Navigation requests should fall back to cached app shell.
 - Static assets should be cache-first after install.
 - Network is not required for core app behavior after first load.
 - Cache names should include an app version.
+- Current cache names use `adapost-urgenta-romania-app-shell-v1` and
+  `adapost-urgenta-romania-runtime-v1`; bump `CACHE_VERSION` in `public/sw.js` when changing cached asset
+  contracts.
+- Navigation requests are network-first while online and fall back to the cached app shell offline.
+- Same-origin static assets are cache-first and are written into the runtime cache after a successful network fetch.
+- If a same-origin asset is neither cached nor reachable, the service worker returns a plain-text `504` response.
 
 ## Offline Acceptance Checks
 

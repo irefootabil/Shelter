@@ -7,6 +7,29 @@
 
 V1 vendors the reference JSON and cites the official IGSU PDF. V1 does not implement a PDF parser.
 
+## Vendored Dataset
+
+- Local file: `src/data/allShelters.raw.json`
+- Upstream file: `mhlnu/adaposturi/data/allShelters.json`
+- Upstream commit: `62b69f2af42e9df1f057581f50b14edf8a601c4d`
+- Upstream blob SHA: `6be338513a35af3501ac9963fdb234780d09d507`
+- Vendored on: 2026-06-05
+
+The adapter loads the county-grouped upstream JSON and exposes both normalized county groups and a flat shelter list. Raw status labels are mapped as follows:
+
+- `green` -> `functional`
+- `orange` -> `partial`
+- `red` -> `nonfunctional`
+- `0` or unknown labels -> `unknown`
+
+Raw type labels are mapped as follows:
+
+- `public` -> `public`
+- `privat` -> `private`
+- unknown labels -> `unknown`
+
+Records missing id, county, town, address, or valid Romania-bounded coordinates are skipped. Non-positive or non-integer capacities normalize to `null`.
+
 ## Normalized Shelter Schema
 
 Use a compact TypeScript schema:

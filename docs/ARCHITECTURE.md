@@ -36,6 +36,14 @@ The app is a static Vite React TypeScript PWA. All required v1 data and content 
 - Never log precise coordinates by default.
 - Store only the last known location locally, with an expiry policy documented in code.
 
+## Location State
+
+- `useLocation` watches browser geolocation when available and permission is not already denied.
+- Effective location priority is fresh GPS, fresh cache, then manual fallback input.
+- Last known GPS location is cached under `adapost-urgenta-romania:last-known-location:v1`.
+- Cached location is considered fresh for 15 minutes by default; expired cached coordinates are surfaced as stale but are not treated as the current effective location.
+- Storage access must use safe helpers because private browsing, quota limits, or disabled storage can throw.
+
 ## Sensor Constraints
 
 - GPS may be unavailable, denied, stale, or inaccurate.

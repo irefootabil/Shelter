@@ -13,3 +13,4 @@ export {
 export type { CardinalDirection, Coordinate, CoordinateBounds } from "./geo";
 export { rankShelters } from "./ranking";
 export type { RankedShelter, ShelterRanking, ShelterRankingOptions } from "./ranking";
+export { readJsonFromStorage, removeFromStorage, writeJsonToStorage } from "./storage";

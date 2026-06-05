@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Adapost Urgenta Romania</title>
+  <rect width="512" height="512" rx="64" fill="#050505" />
+  <path d="M86 240 256 88l170 152v178a26 26 0 0 1-26 26H112a26 26 0 0 1-26-26Z" fill="#f4f6f8" />
+  <path d="M150 246 256 152l106 94v152H150Z" fill="#111820" />
+  <path d="M256 208v128M192 272h128" stroke="#76d7c4" stroke-width="38" stroke-linecap="round" />
+</svg>

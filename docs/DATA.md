@@ -61,6 +61,17 @@ Keep raw Romanian status/type labels available only if needed for display or dia
 - The nearest list may include all statuses but must visibly mark nonfunctional shelters.
 - Distance sorting uses Haversine distance from the current effective location.
 
+## Coordinate Contracts
+
+Geo helpers use decimal-degree coordinates with `{ latitude, longitude }` keys.
+
+- Latitude must be a finite number from `-90` to `90`.
+- Longitude must be a finite number from `-180` to `180`.
+- Romania-bounded shelter coordinates use the conservative bounding box `43..49` latitude and `20..30` longitude.
+- Distance helpers return meters using Haversine distance and an Earth radius of `6,371,000` meters.
+- Bearing helpers return normalized degrees from north in the range `0 <= bearing < 360`.
+- Cardinal direction helpers return code identifiers (`N`, `NE`, `E`, `SE`, `S`, `SW`, `W`, `NW`); Romanian UI labels should be mapped later from content/i18n files.
+
 ## Manual Fallback
 
 Manual fallback must allow selecting or searching county and town from bundled data. The fallback location can be the center of matching shelter coordinates for that town/county.

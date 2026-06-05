@@ -59,3 +59,11 @@ The app is a static Vite React TypeScript PWA. All required v1 data and content 
 - Content is bundled with the app so it remains available offline after the first load.
 - Emergency guidance is orientation-only: the UI must tell users to follow 112, RO-Alert, DSU, IGSU, local authorities, and intervention teams when official instructions differ from bundled content.
 - Source links point users to FiiPregatit.ro and STS 112 information for review when network access is available.
+
+## UI Shell
+
+- The first screen is a mobile-first app shell, not a marketing landing page.
+- UI copy lives in `src/content/appCopy.ts`; emergency guidance remains in `src/content/emergencyContent.ts`.
+- The shell uses static placeholders for GPS, manual search, and ranked shelter results until those flows are wired into UI state.
+- The shell must keep source/disclaimer text visible so users understand shelter data can be stale and official instructions take priority.
+- Styling favors AMOLED-friendly dark surfaces, safe-area padding, large tap targets, and accessible landmarks for header, main content, and primary navigation.

@@ -52,3 +52,10 @@ The app is a static Vite React TypeScript PWA. All required v1 data and content 
 - `useCompass` listens to `deviceorientation` when available and exposes a separate explicit permission request action for iOS-style `DeviceOrientationEvent.requestPermission`.
 - Compass readings prefer `webkitCompassHeading` when present, fall back to normalized `alpha` heading, smooth wraparound changes, and surface browser-provided accuracy as a calibration signal.
 - If orientation APIs are missing, denied, or do not include usable heading values, the app must keep working with text directions and shelter details.
+
+## Emergency Content
+
+- Emergency numbers and concise Romanian instructions live in `src/content/emergencyContent.ts`.
+- Content is bundled with the app so it remains available offline after the first load.
+- Emergency guidance is orientation-only: the UI must tell users to follow 112, RO-Alert, DSU, IGSU, local authorities, and intervention teams when official instructions differ from bundled content.
+- Source links point users to FiiPregatit.ro and STS 112 information for review when network access is available.

@@ -352,6 +352,60 @@ button.secondary-action:disabled {
   gap: 0.85rem;
 }
 
+.compass-card {
+  display: grid;
+  gap: 0.85rem;
+  border: 1px solid rgba(141, 255, 218, 0.16);
+  border-radius: 8px;
+  padding: 1rem;
+  background: rgba(5, 37, 31, 0.38);
+}
+
+.compass-card p {
+  margin-bottom: 0;
+}
+
+.compass-card strong {
+  color: #f7fafc;
+}
+
+.compass-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.bearing-chip {
+  flex: 0 0 auto;
+  border: 1px solid rgba(141, 255, 218, 0.24);
+  border-radius: 999px;
+  padding: 0.36rem 0.55rem;
+  background: rgba(0, 0, 0, 0.34);
+  color: #8dffda;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.compass-status {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.compass-status p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+}
+
+.compass-action {
+  justify-self: start;
+}
+
 .shelter-result {
   display: grid;
   gap: 0.75rem;
@@ -530,6 +584,7 @@ button.secondary-action:disabled {
   .status-card,
   .number-card,
   .instruction-card,
+  .compass-card,
   .result-placeholder {
     padding: 1.2rem;
   }

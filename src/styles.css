@@ -75,6 +75,7 @@ p {
 .brand-lockup {
   display: inline-flex;
   align-items: center;
+  min-height: 2.75rem;
   min-width: 0;
   gap: 0.6rem;
   color: #f7fafc;
@@ -528,6 +529,9 @@ button.secondary-action:disabled {
 }
 
 .source-panel a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
   color: #8dffda;
 }
 
@@ -551,7 +555,7 @@ button.secondary-action:disabled {
 
 .bottom-nav a {
   display: grid;
-  min-height: 2.55rem;
+  min-height: 2.75rem;
   place-items: center;
   border-radius: 6px;
   color: #d9e5ec;
@@ -564,7 +568,9 @@ button.secondary-action:disabled {
 .primary-action:focus-visible,
 .secondary-action:focus-visible,
 .emergency-call:focus-visible,
-.brand-lockup:focus-visible {
+.brand-lockup:focus-visible,
+.manual-grid select:focus-visible,
+.source-panel a:focus-visible {
   outline: 3px solid #8dffda;
   outline-offset: 3px;
 }

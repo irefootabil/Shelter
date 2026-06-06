@@ -18,7 +18,7 @@ describe("App", () => {
 
     expect(screen.getByRole("banner")).toBeInTheDocument();
     expect(screen.getByRole("main")).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Navigare principala" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: appCopy.navigation.primaryLabel })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: appCopy.title })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: appCopy.sections.install.title })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: appCopy.sections.shelter.title })).toBeInTheDocument();

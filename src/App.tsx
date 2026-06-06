@@ -8,15 +8,15 @@ import { rankShelters, type RankedShelter } from "./lib/ranking";
 
 const statusItems = [
   {
-    label: "Offline",
+    label: appCopy.status.labels.offline,
     text: appCopy.status.offlineReady,
   },
   {
-    label: "Manual",
+    label: appCopy.status.labels.manual,
     text: appCopy.status.manualFallback,
   },
   {
-    label: "Privat",
+    label: appCopy.status.labels.private,
     text: appCopy.status.localOnly,
   },
 ];
@@ -85,7 +85,7 @@ export function App() {
           <p className="eyebrow">{appCopy.productLabel}</p>
           <h1 id="app-title">{appCopy.title}</h1>
           <p className="lead">{appCopy.subtitle}</p>
-          <div className="hero-actions" aria-label="Actiuni principale">
+          <div className="hero-actions" aria-label={appCopy.accessibility.primaryActions}>
             <a className="primary-action" href="#nearby">
               {appCopy.actions.findShelter}
             </a>
@@ -315,7 +315,7 @@ export function App() {
         </section>
       </main>
 
-      <nav className="bottom-nav" aria-label="Navigare principala">
+      <nav className="bottom-nav" aria-label={appCopy.navigation.primaryLabel}>
         <a href="#status">{appCopy.navigation.status}</a>
         <a href="#install">{appCopy.navigation.install}</a>
         <a href="#nearby">{appCopy.navigation.shelter}</a>

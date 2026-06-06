@@ -17,6 +17,11 @@ export const appCopy = {
   },
   status: {
     title: "Starea aplicatiei",
+    labels: {
+      offline: "Offline",
+      manual: "Manual",
+      private: "Privat",
+    },
     offlineReady: "Pregatita pentru folosire offline dupa prima incarcare.",
     manualFallback: "Cautarea manuala dupa judet si localitate ramane disponibila.",
     localOnly: "Coordonatele raman pe dispozitiv. Fara conturi sau telemetrie.",
@@ -139,9 +144,13 @@ export const appCopy = {
     },
   },
   navigation: {
+    primaryLabel: "Navigare principala",
     status: "Stare",
     install: "Offline",
     shelter: "Adapost",
     emergency: "Urgenta",
+  },
+  accessibility: {
+    primaryActions: "Actiuni principale",
   },
 } as const;

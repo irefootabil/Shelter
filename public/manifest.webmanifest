@@ -2,8 +2,8 @@
   "name": "Adapost Urgenta Romania",
   "short_name": "Adaposturi",
   "description": "Ghid offline pentru adaposturi de protectie civila din Romania.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#050505",
@@ -13,7 +13,7 @@
   "categories": ["navigation", "utilities"],
   "icons": [
     {
-      "src": "/icons/app-icon.svg",
+      "src": "icons/app-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

@@ -28,13 +28,13 @@ const manifest = JSON.parse(
 ) as WebManifest;
 
 describe("web app manifest install metadata", () => {
-  it("declares a Romanian standalone app within root scope", () => {
+  it("declares a Romanian standalone app within its deployed scope", () => {
     expect(manifest.name).toBe("Adapost Urgenta Romania");
     expect(manifest.short_name).toBe("Adaposturi");
     expect(manifest.lang).toBe("ro");
     expect(manifest.dir).toBe("ltr");
-    expect(manifest.start_url).toBe("/");
-    expect(manifest.scope).toBe("/");
+    expect(manifest.start_url).toBe(".");
+    expect(manifest.scope).toBe(".");
     expect(manifest.display).toBe("standalone");
     expect(manifest.display_override).toEqual(["standalone", "minimal-ui", "browser"]);
   });
@@ -44,7 +44,7 @@ describe("web app manifest install metadata", () => {
     expect(manifest.theme_color).toBe("#050505");
     expect(manifest.categories).toEqual(["navigation", "utilities"]);
     expect(manifest.icons).toContainEqual({
-      src: "/icons/app-icon.svg",
+      src: "icons/app-icon.svg",
       sizes: "any",
       type: "image/svg+xml",
       purpose: "any maskable",

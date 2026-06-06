@@ -105,3 +105,18 @@ debugging, but real phone install prompts should be checked over HTTPS.
 ## Deployment Notes
 
 Any static host is acceptable if it serves over HTTPS and supports service workers. GitHub Pages, Netlify, and Cloudflare Pages are all valid targets.
+
+### GitHub Pages Project Site
+
+The default production build is configured for a GitHub Pages project site served from `/Shelter/`, such as
+`https://<user>.github.io/Shelter/`.
+
+- `vite.config.ts` uses `VITE_BASE_PATH` when provided and otherwise defaults to `/Shelter/`.
+- `index.html` uses Vite's `%BASE_URL%` placeholder for the manifest and icon links.
+- The service worker registers from `import.meta.env.BASE_URL` and derives its cache URLs from its registration scope.
+- The manifest uses relative `start_url`, `scope`, and icon paths so install metadata resolves under the deployed project path.
+- `.github/workflows/deploy-pages.yml` builds with `VITE_BASE_PATH=/Shelter/` and uploads `dist/` to GitHub Pages.
+
+If the GitHub repository name is not `Shelter`, update both the Vite default base and the workflow `VITE_BASE_PATH`
+to match the repository path, including leading and trailing slashes. For a custom domain or user/organization root
+site, set `VITE_BASE_PATH=/`.

@@ -12,14 +12,16 @@ describe("service worker offline cache contract", () => {
   });
 
   it("precaches the core local PWA assets", () => {
-    expect(serviceWorkerSource).toContain('const APP_SHELL_URL = "/index.html";');
-    expect(serviceWorkerSource).toContain('"/manifest.webmanifest"');
-    expect(serviceWorkerSource).toContain('"/icons/app-icon.svg"');
+    expect(serviceWorkerSource).toContain("const APP_BASE_URL = new URL(self.registration.scope).pathname;");
+    expect(serviceWorkerSource).toContain("const APP_SHELL_URL = `${APP_BASE_URL}index.html`;");
+    expect(serviceWorkerSource).toContain("`${APP_BASE_URL}manifest.webmanifest`");
+    expect(serviceWorkerSource).toContain("`${APP_BASE_URL}icons/app-icon.svg`");
+    expect(serviceWorkerSource).toContain("url !== APP_BASE_URL && url !== APP_SHELL_URL");
   });
 
   it("discovers Vite build assets from the app shell", () => {
     expect(serviceWorkerSource).toContain("function getBuildAssetUrls");
-    expect(serviceWorkerSource).toContain('assetUrl.pathname.startsWith("/assets/")');
+    expect(serviceWorkerSource).toContain("assetUrl.pathname.startsWith(APP_ASSETS_URL)");
     expect(serviceWorkerSource).toContain("cache.addAll([...CORE_ASSETS");
   });
 

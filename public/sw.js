@@ -1,8 +1,10 @@
 const CACHE_VERSION = "v1";
 const APP_SHELL_CACHE = `adapost-urgenta-romania-app-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `adapost-urgenta-romania-runtime-${CACHE_VERSION}`;
-const APP_SHELL_URL = "/index.html";
-const CORE_ASSETS = ["/", APP_SHELL_URL, "/manifest.webmanifest", "/icons/app-icon.svg"];
+const APP_BASE_URL = new URL(self.registration.scope).pathname;
+const APP_SHELL_URL = `${APP_BASE_URL}index.html`;
+const APP_ASSETS_URL = `${APP_BASE_URL}assets/`;
+const CORE_ASSETS = [APP_BASE_URL, APP_SHELL_URL, `${APP_BASE_URL}manifest.webmanifest`, `${APP_BASE_URL}icons/app-icon.svg`];
 const CACHEABLE_DESTINATIONS = new Set(["document", "font", "image", "manifest", "script", "style", "worker"]);
 
 self.addEventListener("install", (event) => {
@@ -51,8 +53,8 @@ async function precacheAppShell() {
   const buildAssetUrls = getBuildAssetUrls(appShellHtml);
 
   await cache.put(APP_SHELL_URL, appShellResponse.clone());
-  await cache.put("/", appShellResponse.clone());
-  await cache.addAll([...CORE_ASSETS.filter((url) => url !== "/" && url !== APP_SHELL_URL), ...buildAssetUrls]);
+  await cache.put(APP_BASE_URL, appShellResponse.clone());
+  await cache.addAll([...CORE_ASSETS.filter((url) => url !== APP_BASE_URL && url !== APP_SHELL_URL), ...buildAssetUrls]);
 }
 
 function getBuildAssetUrls(appShellHtml) {
@@ -62,7 +64,7 @@ function getBuildAssetUrls(appShellHtml) {
   for (const [, assetReference] of assetReferences) {
     const assetUrl = new URL(assetReference, self.location.origin);
 
-    if (assetUrl.origin === self.location.origin && assetUrl.pathname.startsWith("/assets/")) {
+    if (assetUrl.origin === self.location.origin && assetUrl.pathname.startsWith(APP_ASSETS_URL)) {
       assetUrls.add(`${assetUrl.pathname}${assetUrl.search}`);
     }
   }
@@ -88,7 +90,7 @@ async function handleNavigationRequest(request) {
     if (response.ok) {
       const cache = await caches.open(APP_SHELL_CACHE);
       await cache.put(APP_SHELL_URL, response.clone());
-      await cache.put("/", response.clone());
+      await cache.put(APP_BASE_URL, response.clone());
     }
 
     return response;
@@ -105,7 +107,7 @@ function isSameOriginCacheableRequest(request) {
     return false;
   }
 
-  return requestUrl.pathname.startsWith("/assets/") || CACHEABLE_DESTINATIONS.has(request.destination);
+  return requestUrl.pathname.startsWith(APP_ASSETS_URL) || CACHEABLE_DESTINATIONS.has(request.destination);
 }
 
 async function handleCacheFirstRequest(request) {

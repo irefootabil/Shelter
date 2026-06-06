@@ -6,7 +6,7 @@ The app will bundle shelter data locally, keep location processing on-device, an
 
 ## Quick Start
 
-Implementation has not started yet. After Session 002 scaffolds the app, use:
+Use:
 
 ```powershell
 npm install
@@ -15,7 +15,21 @@ npm run build
 npm run preview
 ```
 
-Expected local URL after scaffold: `http://localhost:5173`.
+Expected local dev URL: `http://localhost:5173`.
+
+## GitHub Pages
+
+The default production build targets a GitHub Pages project site at `/Shelter/`.
+
+```powershell
+npm run build
+```
+
+Publish the generated `dist/` directory, or push to `main` and use the included GitHub Actions workflow after enabling
+GitHub Pages with `Source: GitHub Actions`.
+
+If the repository name is not `Shelter`, update `VITE_BASE_PATH` in `.github/workflows/deploy-pages.yml` and the default
+`base` value in `vite.config.ts`.
 
 ## Product Defaults
 

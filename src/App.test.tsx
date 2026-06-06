@@ -20,6 +20,7 @@ describe("App", () => {
     expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Navigare principala" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: appCopy.title })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: appCopy.sections.install.title })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: appCopy.sections.shelter.title })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: appCopy.sections.emergency.title })).toBeInTheDocument();
   });
@@ -29,8 +30,19 @@ describe("App", () => {
 
     expect(screen.getByText(appCopy.status.offlineReady)).toBeInTheDocument();
     expect(screen.getByText(appCopy.status.localOnly)).toBeInTheDocument();
+    expect(screen.getByText(appCopy.sections.install.caveat)).toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.location.fallback)).toBeInTheDocument();
     expect(screen.getByText(emergencyContent.disclaimer)).toBeInTheDocument();
+  });
+
+  it("shows install and offline preparation steps", () => {
+    render(<App />);
+
+    expect(screen.getByRole("link", { name: appCopy.navigation.install })).toHaveAttribute("href", "#install");
+
+    for (const step of appCopy.sections.install.steps) {
+      expect(screen.getByText(step)).toBeInTheDocument();
+    }
   });
 
   it("renders emergency actions and active location controls", () => {

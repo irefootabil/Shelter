@@ -406,6 +406,20 @@ button.secondary-action:disabled {
   justify-self: start;
 }
 
+.install-checklist {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #d4dde5;
+  line-height: 1.5;
+}
+
+.install-checklist li::marker {
+  color: #8dffda;
+  font-weight: 900;
+}
+
 .shelter-result {
   display: grid;
   gap: 0.75rem;
@@ -524,7 +538,7 @@ button.secondary-action:disabled {
   left: max(0.75rem, env(safe-area-inset-left));
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.25rem;
   max-width: 28rem;
   margin: 0 auto;

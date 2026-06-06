@@ -107,6 +107,20 @@ export function App() {
           </div>
         </section>
 
+        <section id="install" className="panel install-panel" aria-labelledby="install-title">
+          <div>
+            <p className="card-kicker">{appCopy.sections.install.status}</p>
+            <h2 id="install-title">{appCopy.sections.install.title}</h2>
+            <p>{appCopy.sections.install.description}</p>
+          </div>
+          <ol className="install-checklist">
+            {appCopy.sections.install.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          <p className="quiet-note">{appCopy.sections.install.caveat}</p>
+        </section>
+
         <section className="panel location-panel" aria-labelledby="location-title">
           <div>
             <p className="card-kicker">{appCopy.sections.location.status}</p>
@@ -303,6 +317,7 @@ export function App() {
 
       <nav className="bottom-nav" aria-label="Navigare principala">
         <a href="#status">{appCopy.navigation.status}</a>
+        <a href="#install">{appCopy.navigation.install}</a>
         <a href="#nearby">{appCopy.navigation.shelter}</a>
         <a href="#emergency">{appCopy.navigation.emergency}</a>
       </nav>

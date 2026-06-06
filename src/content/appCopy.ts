@@ -6,6 +6,7 @@ export const appCopy = {
   actions: {
     findShelter: "Cauta adapost",
     emergencyGuide: "Instructiuni",
+    installApp: "Instaleaza aplicatia",
     enableLocation: "Activeaza GPS",
     enableCompass: "Activeaza busola",
     manualSearch: "Cauta manual",
@@ -47,6 +48,19 @@ export const appCopy = {
       manualCountyPlaceholder: "Selecteaza judetul",
       manualTownPlaceholder: "Selecteaza localitatea",
       manualSelection: "Selectie manuala",
+    },
+    install: {
+      title: "Instalare si offline",
+      status: "Pregatire inainte de urgenta",
+      description:
+        "Deschide aplicatia online cel putin o data, apoi instaleaz-o din meniul browserului pentru acces rapid de pe ecranul telefonului.",
+      steps: [
+        "Verifica aceasta pagina cand ai internet pentru ca datele si interfata sa fie salvate pe dispozitiv.",
+        "Pe Android foloseste Instalare aplicatie sau Adauga pe ecranul principal. Pe iPhone foloseste Partajare, apoi Adauga pe ecranul principal.",
+        "Testeaza o reincarcare fara internet si cautarea manuala dupa judet si localitate.",
+      ],
+      caveat:
+        "Daca ai sters datele browserului sau ai instalat pe un telefon nou, incarca din nou aplicatia online inainte sa te bazezi pe modul offline.",
     },
     shelter: {
       title: "Adapost recomandat",
@@ -126,6 +140,7 @@ export const appCopy = {
   },
   navigation: {
     status: "Stare",
+    install: "Offline",
     shelter: "Adapost",
     emergency: "Urgenta",
   },

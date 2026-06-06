@@ -1,5 +1,8 @@
+import { useMemo, useState } from "react";
 import { appCopy, emergencyContent } from "./content";
-import { shelterDataSource } from "./data/sourceMetadata";
+import { shelterCountyGroups, shelters, shelterDataSource, type Shelter, type ShelterStatus } from "./data";
+import { useLocation, type LocationSnapshot, type LocationStatus } from "./hooks/useLocation";
+import { rankShelters, type RankedShelter } from "./lib/ranking";
 
 const statusItems = [
   {
@@ -16,7 +19,45 @@ const statusItems = [
   },
 ];
 
+type ManualSelection = {
+  countyId: string;
+  town: string;
+};
+
 export function App() {
+  const [gpsEnabled, setGpsEnabled] = useState(false);
+  const [manualSelection, setManualSelection] = useState<ManualSelection>({
+    countyId: "",
+    town: "",
+  });
+  const selectedCounty = shelterCountyGroups.find((group) => group.id === manualSelection.countyId) ?? null;
+  const townOptions = useMemo(() => getTownOptions(selectedCounty?.shelters ?? []), [selectedCounty]);
+  const manualLocation = useMemo(
+    () =>
+      selectedCounty === null || manualSelection.town === ""
+        ? null
+        : getTownCenter(selectedCounty.shelters, manualSelection.town),
+    [manualSelection.town, selectedCounty],
+  );
+  const location = useLocation({
+    enabled: gpsEnabled,
+    manualLocation: manualLocation === null ? null : { coordinate: manualLocation },
+  });
+  const ranking = useMemo(
+    () =>
+      location.effectiveLocation === null
+        ? { primary: null, nearest: [] }
+        : rankShelters(location.effectiveLocation.coordinate, shelters, { limit: 4 }),
+    [location.effectiveLocation],
+  );
+  const sourceLabel = getLocationSourceLabel(location.effectiveLocation);
+  const statusLabel = getLocationStatusLabel(location.status, location.effectiveLocation);
+  const primaryDistance = ranking.primary === null ? "-- km" : formatDistance(ranking.primary.distanceMeters);
+
+  function updateCounty(countyId: string): void {
+    setManualSelection({ countyId, town: "" });
+  }
+
   return (
     <div className="app-frame">
       <header className="top-bar">
@@ -63,14 +104,59 @@ export function App() {
             <p>{appCopy.sections.location.description}</p>
           </div>
           <div className="control-row">
-            <button type="button" className="primary-action" disabled>
+            <button type="button" className="primary-action" onClick={() => setGpsEnabled(true)} disabled={gpsEnabled}>
               {appCopy.actions.enableLocation}
             </button>
-            <button type="button" className="secondary-action" disabled>
+            <a className="secondary-action" href="#manual-location">
               {appCopy.actions.manualSearch}
-            </button>
+            </a>
           </div>
-          <p className="quiet-note">{appCopy.sections.location.fallback}</p>
+          <div className="location-summary" aria-live="polite">
+            <p>
+              <strong>{sourceLabel}</strong>
+              <span>{statusLabel}</span>
+            </p>
+            <p>
+              {location.effectiveLocation?.accuracyMeters === null || location.effectiveLocation === null
+                ? appCopy.sections.location.noAccuracy
+                : `${appCopy.sections.location.accuracy}: ${formatDistance(location.effectiveLocation.accuracyMeters)}`}
+            </p>
+          </div>
+          <div id="manual-location" className="manual-grid">
+            <label>
+              <span>{appCopy.actions.chooseCounty}</span>
+              <select value={manualSelection.countyId} onChange={(event) => updateCounty(event.target.value)}>
+                <option value="">{appCopy.sections.location.manualCountyPlaceholder}</option>
+                {shelterCountyGroups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{appCopy.actions.chooseTown}</span>
+              <select
+                value={manualSelection.town}
+                onChange={(event) => setManualSelection((current) => ({ ...current, town: event.target.value }))}
+                disabled={selectedCounty === null}
+              >
+                <option value="">{appCopy.sections.location.manualTownPlaceholder}</option>
+                {townOptions.map((town) => (
+                  <option key={town} value={town}>
+                    {town}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {manualSelection.town !== "" ? (
+            <p className="quiet-note">
+              {appCopy.sections.location.manualSelection}: {selectedCounty?.name}, {manualSelection.town}
+            </p>
+          ) : (
+            <p className="quiet-note">{appCopy.sections.location.fallback}</p>
+          )}
         </section>
 
         <section id="nearby" className="panel shelter-panel" aria-labelledby="shelter-title">
@@ -79,12 +165,26 @@ export function App() {
               <p className="card-kicker">{appCopy.sections.shelter.status}</p>
               <h2 id="shelter-title">{appCopy.sections.shelter.title}</h2>
             </div>
-            <span className="distance-placeholder">-- km</span>
+            <span className="distance-placeholder">{primaryDistance}</span>
           </div>
           <p>{appCopy.sections.shelter.description}</p>
-          <div className="result-placeholder" aria-live="polite">
+          <div className="result-placeholder shelter-results" aria-live="polite">
             <h3>{appCopy.sections.shelter.listTitle}</h3>
-            <p>{appCopy.sections.shelter.listPlaceholder}</p>
+            {ranking.primary === null ? (
+              <p>{appCopy.sections.shelter.listPlaceholder}</p>
+            ) : (
+              <>
+                <ShelterResult result={ranking.primary} label={appCopy.sections.shelter.primaryLabel} />
+                <div className="nearest-list" aria-label={appCopy.sections.shelter.nearestLabel}>
+                  {ranking.nearest
+                    .filter((result) => result.shelter.id !== ranking.primary?.shelter.id)
+                    .slice(0, 3)
+                    .map((result) => (
+                      <ShelterResult result={result} key={result.shelter.id} />
+                    ))}
+                </div>
+              </>
+            )}
           </div>
         </section>
 
@@ -155,4 +255,89 @@ export function App() {
       </nav>
     </div>
   );
+}
+
+function ShelterResult({ result, label }: { result: RankedShelter; label?: string }) {
+  const { shelter } = result;
+
+  return (
+    <article className="shelter-result">
+      <div className="shelter-result-heading">
+        <div>
+          {label ? <p className="card-kicker">{label}</p> : null}
+          <h4>{shelter.address}</h4>
+        </div>
+        <span className={getShelterStatusClass(shelter.status)}>{appCopy.sections.shelter.statusLabels[shelter.status]}</span>
+      </div>
+      <dl>
+        <div>
+          <dt>{appCopy.sections.shelter.fields.distance}</dt>
+          <dd>{formatDistance(result.distanceMeters)}</dd>
+        </div>
+        <div>
+          <dt>{appCopy.sections.shelter.fields.town}</dt>
+          <dd>
+            {shelter.town}, {shelter.county}
+          </dd>
+        </div>
+        <div>
+          <dt>{appCopy.sections.shelter.fields.capacity}</dt>
+          <dd>{formatCapacity(shelter)}</dd>
+        </div>
+        <div>
+          <dt>{appCopy.sections.shelter.fields.access}</dt>
+          <dd>{appCopy.sections.shelter.typeLabels[shelter.type]}</dd>
+        </div>
+      </dl>
+    </article>
+  );
+}
+
+function getTownOptions(countyShelters: readonly Shelter[]): string[] {
+  return [...new Set(countyShelters.map((shelter) => shelter.town))].sort((left, right) => left.localeCompare(right, "ro"));
+}
+
+function getTownCenter(countyShelters: readonly Shelter[], town: string) {
+  const townShelters = countyShelters.filter((shelter) => shelter.town === town);
+
+  if (townShelters.length === 0) {
+    return null;
+  }
+
+  return {
+    latitude: townShelters.reduce((sum, shelter) => sum + shelter.latitude, 0) / townShelters.length,
+    longitude: townShelters.reduce((sum, shelter) => sum + shelter.longitude, 0) / townShelters.length,
+  };
+}
+
+function getLocationSourceLabel(location: LocationSnapshot | null): string {
+  return location === null
+    ? appCopy.sections.location.sourceLabels.none
+    : appCopy.sections.location.sourceLabels[location.source];
+}
+
+function getLocationStatusLabel(status: LocationStatus, effectiveLocation: LocationSnapshot | null): string {
+  if (effectiveLocation !== null && status === "idle") {
+    return appCopy.sections.location.permissionLabels.ready;
+  }
+
+  return appCopy.sections.location.permissionLabels[status];
+}
+
+function formatDistance(distanceMeters: number): string {
+  if (distanceMeters < 1000) {
+    return `${Math.round(distanceMeters)} m`;
+  }
+
+  return `${(distanceMeters / 1000).toFixed(distanceMeters < 10_000 ? 1 : 0)} km`;
+}
+
+function formatCapacity(shelter: Shelter): string {
+  return shelter.capacity === null
+    ? appCopy.sections.shelter.capacityUnknown
+    : `${shelter.capacity} ${appCopy.sections.shelter.capacityPeople}`;
+}
+
+function getShelterStatusClass(status: ShelterStatus): string {
+  return `shelter-status shelter-status-${status}`;
 }

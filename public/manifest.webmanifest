@@ -3,10 +3,14 @@
   "short_name": "Adaposturi",
   "description": "Ghid offline pentru adaposturi de protectie civila din Romania.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#050505",
   "theme_color": "#050505",
   "lang": "ro",
+  "dir": "ltr",
+  "categories": ["navigation", "utilities"],
   "icons": [
     {
       "src": "/icons/app-icon.svg",

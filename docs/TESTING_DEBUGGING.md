@@ -45,6 +45,9 @@ Exact scripts may change during Session 002. Update this document if script name
 
 ## Manual Scenarios
 
+Use the step-by-step PWA runbook in `docs/OFFLINE_PWA.md` for installability, first-load caching, offline reload,
+manual shelter fallback, GPS fallback, compass fallback, and emergency/source visibility.
+
 - GPS granted and accurate.
 - GPS denied.
 - GPS unavailable.

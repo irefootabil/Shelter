@@ -65,6 +65,7 @@ The app is a static Vite React TypeScript PWA. All required v1 data and content 
 - The first screen is a mobile-first app shell, not a marketing landing page.
 - UI copy lives in `src/content/appCopy.ts`; emergency guidance remains in `src/content/emergencyContent.ts`.
 - The shell keeps GPS behind an explicit action, reads cached/manual effective locations through `useLocation`, and ranks shelter candidates locally with the shared ranking helper.
+- The shell includes a visible install/offline preparation section so users can verify first-load caching and home-screen install before an emergency.
 - Manual fallback derives county and town options from bundled shelter data and uses the center of matching town shelters as the manual coordinate.
 - The shell must keep source/disclaimer text visible so users understand shelter data can be stale and official instructions take priority.
 - Styling favors AMOLED-friendly dark surfaces, safe-area padding, large tap targets, and accessible landmarks for header, main content, and primary navigation.

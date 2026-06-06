@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { appCopy, emergencyContent } from "./content";
 import { shelterCountyGroups, shelters, shelterDataSource, type Shelter, type ShelterStatus } from "./data";
+import { useCompass, type CompassCalibrationState, type CompassStatus } from "./hooks/useCompass";
 import { useLocation, type LocationSnapshot, type LocationStatus } from "./hooks/useLocation";
+import { getBearingDegrees, getCardinalDirection, type CardinalDirection } from "./lib/geo";
 import { rankShelters, type RankedShelter } from "./lib/ranking";
 
 const statusItems = [
@@ -43,12 +45,20 @@ export function App() {
     enabled: gpsEnabled,
     manualLocation: manualLocation === null ? null : { coordinate: manualLocation },
   });
+  const compass = useCompass();
   const ranking = useMemo(
     () =>
       location.effectiveLocation === null
         ? { primary: null, nearest: [] }
         : rankShelters(location.effectiveLocation.coordinate, shelters, { limit: 4 }),
     [location.effectiveLocation],
+  );
+  const targetDirection = useMemo(
+    () =>
+      location.effectiveLocation === null || ranking.primary === null
+        ? null
+        : getTargetDirection(location.effectiveLocation, ranking.primary.shelter),
+    [location.effectiveLocation, ranking.primary],
   );
   const sourceLabel = getLocationSourceLabel(location.effectiveLocation);
   const statusLabel = getLocationStatusLabel(location.status, location.effectiveLocation);
@@ -168,6 +178,49 @@ export function App() {
             <span className="distance-placeholder">{primaryDistance}</span>
           </div>
           <p>{appCopy.sections.shelter.description}</p>
+          {targetDirection === null ? null : (
+            <section className="compass-card" aria-labelledby="compass-title">
+              <div className="compass-heading-row">
+                <div>
+                  <p className="card-kicker">{appCopy.sections.compass.status}</p>
+                  <h3 id="compass-title">{appCopy.sections.compass.title}</h3>
+                </div>
+                <span className="bearing-chip">
+                  {appCopy.sections.compass.cardinalLabels[targetDirection.cardinalDirection]} ·{" "}
+                  {formatBearing(targetDirection.bearingDegrees)}
+                </span>
+              </div>
+              <p>
+                {appCopy.sections.compass.directionPrefix}{" "}
+                <strong>{appCopy.sections.compass.cardinalLabels[targetDirection.cardinalDirection]}</strong>
+              </p>
+              <div className="compass-status" aria-live="polite">
+                <p>
+                  <strong>{appCopy.sections.compass.fields.compass}</strong>
+                  <span>{getCompassStatusLabel(compass.status, compass.calibrationState)}</span>
+                </p>
+                {compass.headingDegrees === null || compass.cardinalDirection === null ? (
+                  <p>{appCopy.sections.compass.headingUnavailable}</p>
+                ) : (
+                  <p>
+                    {appCopy.sections.compass.headingPrefix}{" "}
+                    <strong>{appCopy.sections.compass.cardinalLabels[compass.cardinalDirection]}</strong> ·{" "}
+                    {formatBearing(compass.headingDegrees)}
+                  </p>
+                )}
+              </div>
+              {compass.canRequestPermission && compass.status === "permission-required" ? (
+                <button
+                  type="button"
+                  className="secondary-action compass-action"
+                  onClick={() => void compass.requestPermission()}
+                >
+                  {appCopy.actions.enableCompass}
+                </button>
+              ) : null}
+              <p className="quiet-note">{appCopy.sections.compass.secondaryAid}</p>
+            </section>
+          )}
           <div className="result-placeholder shelter-results" aria-live="polite">
             <h3>{appCopy.sections.shelter.listTitle}</h3>
             {ranking.primary === null ? (
@@ -324,12 +377,43 @@ function getLocationStatusLabel(status: LocationStatus, effectiveLocation: Locat
   return appCopy.sections.location.permissionLabels[status];
 }
 
+function getTargetDirection(location: LocationSnapshot, shelter: Shelter): {
+  bearingDegrees: number;
+  cardinalDirection: CardinalDirection;
+} {
+  const bearingDegrees = getBearingDegrees(location.coordinate, {
+    latitude: shelter.latitude,
+    longitude: shelter.longitude,
+  });
+
+  return {
+    bearingDegrees,
+    cardinalDirection: getCardinalDirection(bearingDegrees),
+  };
+}
+
+function getCompassStatusLabel(status: CompassStatus, calibrationState: CompassCalibrationState): string {
+  if (status === "ready" && calibrationState === "needs-calibration") {
+    return appCopy.sections.compass.statusLabels.needsCalibration;
+  }
+
+  if (status === "ready" && calibrationState === "good") {
+    return appCopy.sections.compass.statusLabels.readyCalibrated;
+  }
+
+  return appCopy.sections.compass.statusLabels[status];
+}
+
 function formatDistance(distanceMeters: number): string {
   if (distanceMeters < 1000) {
     return `${Math.round(distanceMeters)} m`;
   }
 
   return `${(distanceMeters / 1000).toFixed(distanceMeters < 10_000 ? 1 : 0)} km`;
+}
+
+function formatBearing(bearingDegrees: number): string {
+  return `${Math.round(bearingDegrees)}°`;
 }
 
 function formatCapacity(shelter: Shelter): string {

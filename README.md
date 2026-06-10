@@ -48,20 +48,8 @@ If the repository name is not `Shelter`, update `VITE_BASE_PATH` in `.github/wor
 
 Shelter data may be stale or inaccurate. The app must show a clear source/date note and tell users to follow official authority instructions when available.
 
-## Session Workflow
-
-Every implementation session starts by reading:
-
-- `PROJECT_CONTEXT.md`
-- `SESSION_LEDGER.md`
-- the current file in `docs/context-packets/`
-
-Every session ends with verification, ledger update, context packet update, and a Git commit.
-
 ## Documentation Map
 
-- `PROJECT_CONTEXT.md`: stable context for every future Codex session.
-- `SESSION_LEDGER.md`: session history, current goal, touched files, verification, and commit tracking.
 - `docs/PROJECT_BRIEF.md`: product goals, non-goals, users, and safety constraints.
 - `docs/ARCHITECTURE.md`: module boundaries and data flow.
 - `docs/DATA.md`: shelter schema, ranking, source, and data risks.

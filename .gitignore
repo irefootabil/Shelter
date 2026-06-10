@@ -6,5 +6,7 @@ coverage/
 .env
 .env.*
 !.env.example
+PROJECT_CONTEXT.md
+SESSION_LEDGER.md
 Thumbs.db
 .DS_Store

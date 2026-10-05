@@ -48,7 +48,7 @@ export function EmergencyGuide() {
         {emergencyContent.sources.map((source) => (
           <li key={source.url}>
             <a href={source.url}>
-              {source.label}
+                <span>{source.label}</span>
               <ExternalLink size={16} aria-hidden="true" />
             </a>
           </li>

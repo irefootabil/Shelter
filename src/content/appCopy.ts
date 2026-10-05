@@ -175,6 +175,7 @@ export const appCopy = {
     emergency: "Urgenta",
   },
   accessibility: {
+    skipToContent: "Sari la continut",
     primaryActions: "Actiuni principale",
   },
 } as const;

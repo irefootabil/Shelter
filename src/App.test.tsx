@@ -25,6 +25,32 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: appCopy.sections.emergency.title })).toBeInTheDocument();
   });
 
+  it("provides a first keyboard skip link that focuses the main landmark", () => {
+    const { container } = render(<App />);
+    const skip = screen.getByRole("link", { name: appCopy.accessibility.skipToContent });
+    expect(container.querySelector("a")).toBe(skip);
+    expect(skip).toHaveAttribute("href", "#top");
+    fireEvent.click(skip);
+    expect(screen.getByRole("main")).toHaveFocus();
+    for (const link of container.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')) {
+      expect(document.getElementById(link.hash.slice(1))).not.toBeNull();
+    }
+  });
+
+  it("announces status changes without including compass telemetry or whole result cards", async () => {
+    const { container } = render(<App />);
+    const source = screen.getByText(appCopy.sections.location.sourceLabels.none);
+    expect(source.closest('[role="status"]')).not.toBeNull();
+    expect(container.querySelector(".location-summary")).not.toHaveAttribute("aria-live");
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "B" } });
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Sector 1" } });
+    const heading = await screen.findByText(appCopy.sections.compass.headingUnavailable);
+    expect(heading.closest('[role="status"], [aria-live]')).toBeNull();
+    expect(screen.getByText(appCopy.sections.compass.statusLabels.unavailable).closest('[role="status"]')).not.toBeNull();
+    expect(container.querySelector(".shelter-results")).not.toHaveAttribute("aria-live");
+    expect(container.querySelector('.visually-hidden[role="status"]')).toHaveTextContent(appCopy.sections.shelter.primaryLabel);
+  });
+
   it("keeps key Romanian copy visible in the shell", () => {
     render(<App />);
 

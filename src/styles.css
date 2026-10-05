@@ -16,10 +16,12 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--sticky-header-height, 8rem) + 1rem);
+  scroll-padding-bottom: calc(var(--bottom-nav-height, 4rem) + max(0.75rem, env(safe-area-inset-bottom)) + 1rem);
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   margin: 0;
   background:
@@ -54,6 +56,46 @@ p {
 
 .app-frame {
   min-height: 100vh;
+  overflow-wrap: anywhere;
+}
+
+.app-frame :where(section, article, div, label, fieldset, select, span) {
+  min-width: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: max(0.5rem, env(safe-area-inset-top));
+  left: max(0.5rem, env(safe-area-inset-left));
+  z-index: 30;
+  max-width: calc(100% - 1rem);
+  min-height: 2.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #b8f7d4;
+  color: #03130e;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+:where(a, button, input, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid #8dffda;
+  outline-offset: 3px;
 }
 
 .top-bar {
@@ -61,6 +103,7 @@ p {
   top: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
@@ -77,6 +120,7 @@ p {
   align-items: center;
   min-height: 2.75rem;
   min-width: 0;
+  flex: 1 1 12rem;
   gap: 0.6rem;
   color: #f7fafc;
   font-size: 0.92rem;
@@ -85,9 +129,8 @@ p {
 }
 
 .brand-lockup span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
 }
 
 .brand-mark {
@@ -113,7 +156,7 @@ p {
 }
 
 .network-pill {
-  max-width: 45%;
+  max-width: 100%;
   white-space: normal;
   text-align: center;
   flex: 0 0 auto;
@@ -126,7 +169,7 @@ p {
 .app-shell {
   width: min(100%, 52rem);
   margin: 0 auto;
-  padding: 2rem max(1rem, env(safe-area-inset-right)) calc(5.5rem + env(safe-area-inset-bottom))
+  padding: 2rem max(1rem, env(safe-area-inset-right)) calc(var(--bottom-nav-height, 4rem) + max(0.75rem, env(safe-area-inset-bottom)) + 2rem)
     max(1rem, env(safe-area-inset-left));
 }
 
@@ -144,10 +187,10 @@ p {
 }
 
 h1 {
-  max-width: 11ch;
+  max-width: min(100%, 16ch);
   margin-bottom: 0;
-  font-size: clamp(2.6rem, 4rem, 4.9rem);
-  line-height: 0.97;
+  font-size: 2.5rem;
+  line-height: 1.1;
   letter-spacing: 0;
 }
 
@@ -192,7 +235,10 @@ h4 {
   align-items: center;
   justify-content: center;
   min-height: 2.75rem;
-  min-width: 8.75rem;
+  min-width: min(8.75rem, 100%);
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
   border: 1px solid transparent;
   border-radius: 8px;
   padding: 0.75rem 1rem;
@@ -208,7 +254,7 @@ h4 {
 }
 
 .secondary-action {
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: #75838d;
   background: rgba(255, 255, 255, 0.06);
   color: #f7fafc;
 }
@@ -349,7 +395,7 @@ button.secondary-action:disabled {
 .manual-grid select {
   width: 100%;
   min-height: 2.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid #75838d;
   border-radius: 8px;
   padding: 0.7rem 0.75rem;
   background: #050708;
@@ -358,6 +404,7 @@ button.secondary-action:disabled {
 
 .section-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
@@ -365,6 +412,7 @@ button.secondary-action:disabled {
 
 .distance-placeholder {
   flex: 0 0 auto;
+  max-width: 100%;
   border: 1px solid rgba(141, 255, 218, 0.24);
   border-radius: 8px;
   padding: 0.45rem 0.6rem;
@@ -397,6 +445,7 @@ button.secondary-action:disabled {
 
 .compass-heading-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
@@ -404,6 +453,7 @@ button.secondary-action:disabled {
 
 .bearing-chip {
   flex: 0 0 auto;
+  max-width: 100%;
   border: 1px solid rgba(141, 255, 218, 0.24);
   border-radius: 999px;
   padding: 0.36rem 0.55rem;
@@ -455,6 +505,7 @@ button.secondary-action:disabled {
 
 .shelter-result-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
@@ -485,6 +536,7 @@ button.secondary-action:disabled {
 
 .shelter-status {
   flex: 0 0 auto;
+  max-width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   padding: 0.32rem 0.5rem;
@@ -509,7 +561,7 @@ button.secondary-action:disabled {
 }
 
 .emergency-call {
-  min-width: 6.25rem;
+  min-width: min(6.25rem, 100%);
   gap: 0.5rem;
   background: #ffdf80;
   color: #1a1100;
@@ -521,7 +573,6 @@ button.secondary-action:disabled {
   margin-top: 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.18);
   padding-block: 1.5rem;
-  scroll-margin-top: 8rem;
   overflow-wrap: anywhere;
 }
 
@@ -553,6 +604,7 @@ button.secondary-action:disabled {
 
 .emergency-contact-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 0.75rem;
 }
@@ -663,6 +715,7 @@ button.secondary-action:disabled {
   align-items: center;
   gap: 0.5rem;
   min-height: 2.75rem;
+  max-width: 100%;
   color: #8dffda;
   line-height: 1.5;
 }
@@ -703,6 +756,7 @@ button.secondary-action:disabled {
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
+  max-width: 100%;
   color: #8dffda;
 }
 
@@ -727,6 +781,10 @@ button.secondary-action:disabled {
 .bottom-nav a {
   display: grid;
   min-height: 2.75rem;
+  min-width: 0;
+  padding: 0.5rem 0.25rem;
+  text-align: center;
+  overflow-wrap: anywhere;
   place-items: center;
   border-radius: 6px;
   color: #d9e5ec;
@@ -747,6 +805,9 @@ button.secondary-action:disabled {
 }
 
 @media (min-width: 42rem) {
+  h1 {
+    font-size: 3.5rem;
+  }
   .app-shell {
     padding-inline: 1.5rem;
   }
@@ -778,5 +839,11 @@ button.secondary-action:disabled {
   .compass-card,
   .result-placeholder {
     padding: 1.2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }

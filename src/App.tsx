@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { appCopy } from "./content";
 import { EmergencyGuide } from "./components/EmergencyGuide";
+import { useNavigationInsets } from "./hooks/useNavigationInsets";
 import { shelterCountyGroups, shelters, shelterDataSource, type Shelter, type ShelterStatus } from "./data";
 import { useCompass, type CompassCalibrationState, type CompassStatus } from "./hooks/useCompass";
 import { useLocation, type LocationSnapshot, type LocationStatus } from "./hooks/useLocation";
@@ -29,6 +30,7 @@ type ManualSelection = {
 };
 
 export function App() {
+  const { headerRef, navigationRef } = useNavigationInsets();
   const offlineStatus = useOfflineStatus();
   const networkOnline = useNetworkOnline();
   const [locationMode, setLocationMode] = useState<"gps" | "manual">("manual");
@@ -87,7 +89,10 @@ export function App() {
 
   return (
     <div className="app-frame">
-      <header className="top-bar">
+      <a className="skip-link" href="#top" onClick={() => document.getElementById("top")?.focus()}>
+        {appCopy.accessibility.skipToContent}
+      </a>
+      <header className="top-bar" ref={headerRef}>
         <a className="brand-lockup" href="#top" aria-label={appCopy.productLabel}>
           <span className="brand-mark" aria-hidden="true">
             A
@@ -97,7 +102,7 @@ export function App() {
         <span className="network-pill" role="status">{appCopy.status.offlineLabels[offlineStatus]}</span>
       </header>
 
-      <main id="top" className="app-shell">
+      <main id="top" className="app-shell" tabIndex={-1}>
         <section className="hero" aria-labelledby="app-title">
           <p className="eyebrow">{appCopy.productLabel}</p>
           <h1 id="app-title">{appCopy.title}</h1>
@@ -163,8 +168,8 @@ export function App() {
               {appCopy.actions.manualSearch}
             </a>
           </div>
-          <div className="location-summary" aria-live="polite">
-            <p>
+          <div className="location-summary">
+            <p role="status" aria-atomic="true">
               <strong>{sourceLabel}</strong>
               <span>{statusLabel}</span>
             </p>
@@ -237,8 +242,8 @@ export function App() {
                 {appCopy.sections.compass.directionPrefix}{" "}
                 <strong>{appCopy.sections.compass.cardinalLabels[targetDirection.cardinalDirection]}</strong>
               </p>
-              <div className="compass-status" aria-live="polite">
-                <p>
+              <div className="compass-status">
+                <p role="status" aria-atomic="true">
                   <strong>{appCopy.sections.compass.fields.compass}</strong>
                   <span>{getCompassStatusLabel(compass.status, compass.calibrationState)}</span>
                 </p>
@@ -264,7 +269,10 @@ export function App() {
               <p className="quiet-note">{appCopy.sections.compass.secondaryAid}</p>
             </section>
           )}
-          <div className="result-placeholder shelter-results" aria-live="polite">
+          <p className="visually-hidden" role="status" aria-atomic="true">
+            {ranking.primary === null ? "" : `${appCopy.sections.shelter.primaryLabel}: ${ranking.primary.shelter.address}`}
+          </p>
+          <div className="result-placeholder shelter-results">
             <h3>{appCopy.sections.shelter.listTitle}</h3>
             {ranking.primary === null ? (
               <p>{appCopy.sections.shelter.listPlaceholder}</p>
@@ -310,7 +318,7 @@ export function App() {
         </section>
       </main>
 
-      <nav className="bottom-nav" aria-label={appCopy.navigation.primaryLabel}>
+      <nav className="bottom-nav" ref={navigationRef} aria-label={appCopy.navigation.primaryLabel}>
         <a href="#status">{appCopy.navigation.status}</a>
         <a href="#install">{appCopy.navigation.install}</a>
         <a href="#nearby">{appCopy.navigation.shelter}</a>

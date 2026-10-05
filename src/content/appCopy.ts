@@ -154,7 +154,7 @@ export const appCopy = {
       },
     },
     emergency: {
-      title: "Ghid rapid",
+      title: "Instructiuni de urgenta",
       description:
         "Pastreaza instructiunile la indemana si urmeaza autoritatile cand informatiile oficiale difera.",
     },

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { appCopy, emergencyContent } from "./content";
+import { appCopy } from "./content";
+import { EmergencyGuide } from "./components/EmergencyGuide";
 import { shelterCountyGroups, shelters, shelterDataSource, type Shelter, type ShelterStatus } from "./data";
 import { useCompass, type CompassCalibrationState, type CompassStatus } from "./hooks/useCompass";
 import { useLocation, type LocationSnapshot, type LocationStatus } from "./hooks/useLocation";
@@ -283,41 +284,7 @@ export function App() {
           </div>
         </section>
 
-        <section id="emergency" className="panel emergency-panel" aria-labelledby="emergency-title">
-          <div className="section-heading">
-            <div>
-              <p className="card-kicker">{emergencyContent.title}</p>
-              <h2 id="emergency-title">{appCopy.sections.emergency.title}</h2>
-            </div>
-            <a className="emergency-call" href="tel:112">
-              {appCopy.actions.call112}
-            </a>
-          </div>
-          <p>{appCopy.sections.emergency.description}</p>
-
-          <div className="number-grid">
-            {emergencyContent.numbers.map((number) => (
-              <article className="number-card" key={number.id}>
-                <strong>{number.number}</strong>
-                <div>
-                  <h3>{number.label}</h3>
-                  <p>{number.action}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          <div className="instruction-list">
-            {emergencyContent.instructionGroups.slice(0, 3).map((group) => (
-              <article className="instruction-card" key={group.id}>
-                <h3>{group.title}</h3>
-                <p>{group.summary}</p>
-              </article>
-            ))}
-          </div>
-
-          <p className="quiet-note">{emergencyContent.disclaimer}</p>
-        </section>
+        <EmergencyGuide />
 
         <section className="source-panel" aria-labelledby="source-title">
           <h2 id="source-title">{appCopy.sections.source.title}</h2>

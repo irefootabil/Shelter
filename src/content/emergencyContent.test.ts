@@ -61,6 +61,7 @@ describe("emergencyContent", () => {
     expect(emergencySources.map((source) => source.url)).toEqual([
       "https://fiipregatit.ro/",
       "https://localizare.112.ro/privacy-policy/ro",
+      "https://serviciipublice.gov.ro/serviciu/serviciul-de-urgenta-prin-sms-113-asigurat-persoanelor-cu-deficiente-de-auz-si-sau-vorbire",
     ]);
   });
 });

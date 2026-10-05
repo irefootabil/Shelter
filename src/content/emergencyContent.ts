@@ -34,9 +34,9 @@ export const emergencyNumbers = [
     number: "113",
     label: "SMS de urgenta pentru persoane cu deficiente de auz sau vorbire",
     description:
-      "Foloseste SMS 113 doar daca nu poti comunica vocal si serviciul este disponibil pentru situatia ta.",
+      "Doar pentru persoane cu deficiente de auz sau vorbire inregistrate in prealabil in serviciul SMS 113.",
     availability: "Serviciu dedicat comunicarii prin SMS in urgente.",
-    action: "Trimite locatia, tipul urgentei si numarul persoanelor afectate, cat mai scurt si clar.",
+    action: "Urmeaza instructiunile serviciului 112 pentru comunicarea prin SMS.",
   },
 ] as const satisfies readonly EmergencyNumber[];
 
@@ -106,15 +106,21 @@ export const emergencySources = [
     label: "Serviciul de urgenta 112 - informatii STS despre serviciu si aplicatia Apel 112",
     url: "https://localizare.112.ro/privacy-policy/ro",
   },
+  {
+    label: "Serviciul SMS 113 - eligibilitate si inregistrare",
+    url: "https://serviciipublice.gov.ro/serviciu/serviciul-de-urgenta-prin-sms-113-asigurat-persoanelor-cu-deficiente-de-auz-si-sau-vorbire",
+  },
 ] as const satisfies readonly EmergencySource[];
 
 export const emergencyContent = {
   title: "Instructiuni de urgenta",
   intro:
-    "Aceste instructiuni sunt disponibile offline dupa prima incarcare si sunt gandite pentru orientare rapida pana primesti indicatii oficiale.",
+    "Aceste instructiuni sunt disponibile offline dupa pregatirea aplicatiei, confirmata de starea Offline pregatit, si sunt gandite pentru orientare rapida pana primesti indicatii oficiale.",
   disclaimer:
     "Aplicatia nu inlocuieste serviciul 112, RO-Alert, DSU, IGSU sau instructiunile autoritatilor. In orice conflict, urmeaza indicatiile oficiale primite in acel moment.",
   lastReviewed: "2026-06-06",
+  reviewedLabel: "Instructiuni revizuite",
+  externalLinksNote: "Linkurile externe necesita internet. Pregatirea offline nu garanteaza disponibilitatea apelurilor sau a mesajelor SMS.",
   numbers: emergencyNumbers,
   instructionGroups: emergencyInstructionGroups,
   sources: emergencySources,

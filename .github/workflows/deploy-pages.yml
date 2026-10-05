@@ -23,6 +23,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Reject tracked private files
+        shell: bash
+        run: |
+          private_files=$(git ls-files -- docs .stitch PROJECT_CONTEXT.md SESSION_LEDGER.md)
+          if [[ -n "$private_files" ]]; then
+            echo "::error::Private project files must not be tracked. Publication blocked."
+            exit 1
+          fi
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

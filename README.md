@@ -47,14 +47,3 @@ If the repository name is not `Shelter`, update `VITE_BASE_PATH` in `.github/wor
 - Reference JSON repository: https://github.com/mhlnu/adaposturi
 
 Shelter data may be stale or inaccurate. The app must show a clear source/date note and tell users to follow official authority instructions when available.
-
-## Documentation Map
-
-- `docs/IMPROVEMENT_PLAN.md`: ranked improvement backlog, acceptance criteria, and selection workflow.
-- `docs/PROJECT_BRIEF.md`: product goals, non-goals, users, and safety constraints.
-- `docs/ARCHITECTURE.md`: module boundaries and data flow.
-- `docs/DATA.md`: shelter schema, ranking, source, and data risks.
-- `docs/OFFLINE_PWA.md`: service worker and offline behavior.
-- `docs/TESTING_DEBUGGING.md`: verification, logging, debugging, and device testing.
-- `docs/GIT_WORKFLOW.md`: mandatory Git workflow.
-- `docs/FEATURE_PROMPTS.md`: module-sized prompts for future implementation chats.

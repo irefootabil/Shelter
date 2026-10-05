@@ -50,6 +50,7 @@ Shelter data may be stale or inaccurate. The app must show a clear source/date n
 
 ## Documentation Map
 
+- `docs/IMPROVEMENT_PLAN.md`: ranked improvement backlog, acceptance criteria, and selection workflow.
 - `docs/PROJECT_BRIEF.md`: product goals, non-goals, users, and safety constraints.
 - `docs/ARCHITECTURE.md`: module boundaries and data flow.
 - `docs/DATA.md`: shelter schema, ranking, source, and data risks.

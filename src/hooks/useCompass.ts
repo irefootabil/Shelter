@@ -75,9 +75,11 @@ export function useCompass(options: UseCompassOptions = {}): UseCompassResult {
   const [snapshot, setSnapshot] = useState<CompassSnapshot | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const previousHeadingRef = useRef<number | null>(null);
+  const lastReadingRef = useRef<number | null>(null);
 
   useEffect(() => {
     previousHeadingRef.current = null;
+    lastReadingRef.current = null;
     setSnapshot(null);
   }, [enabled]);
 
@@ -105,11 +107,23 @@ export function useCompass(options: UseCompassOptions = {}): UseCompassResult {
 
     setStatus("listening");
     setErrorMessage(null);
+    const startedAt = now();
+
+    function checkFreshness(): void {
+      if (now() - (lastReadingRef.current ?? startedAt) >= 10_000) {
+        previousHeadingRef.current = null;
+        setSnapshot(null);
+        setStatus("unavailable");
+      }
+    }
 
     function handleOrientation(event: DeviceOrientationEvent): void {
       const reading = getCompassReading(event as CompassOrientationEvent, calibrationAccuracyThresholdDegrees);
 
       if (reading === null) {
+        previousHeadingRef.current = null;
+        lastReadingRef.current = null;
+        setSnapshot(null);
         setStatus("error");
         setErrorMessage("Device orientation event did not include a usable heading.");
         return;
@@ -129,15 +143,22 @@ export function useCompass(options: UseCompassOptions = {}): UseCompassResult {
       };
 
       previousHeadingRef.current = headingDegrees;
+      lastReadingRef.current = nextSnapshot.timestamp;
       setSnapshot(nextSnapshot);
       setStatus("ready");
       setErrorMessage(null);
     }
 
     window.addEventListener("deviceorientation", handleOrientation);
+    window.addEventListener("deviceorientationabsolute", handleOrientation);
+    const timer = window.setInterval(checkFreshness, 1000);
+    document.addEventListener("visibilitychange", checkFreshness);
 
     return () => {
       window.removeEventListener("deviceorientation", handleOrientation);
+      window.removeEventListener("deviceorientationabsolute", handleOrientation);
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", checkFreshness);
     };
   }, [
     calibrationAccuracyThresholdDegrees,
@@ -238,7 +259,8 @@ function getCompassReading(
   calibrationAccuracyThresholdDegrees: number,
 ): Pick<CompassSnapshot, "headingDegrees" | "accuracyDegrees" | "calibrationState"> | null {
   const webkitHeading = normalizeFiniteDegrees(event.webkitCompassHeading);
-  const alphaHeading = typeof event.alpha === "number" ? normalizeFiniteDegrees(360 - event.alpha) : null;
+  if (typeof event.webkitCompassAccuracy === "number" && event.webkitCompassAccuracy < 0) return null;
+  const alphaHeading = event.absolute === true && typeof event.alpha === "number" ? normalizeFiniteDegrees(360 - event.alpha) : null;
   const headingDegrees = webkitHeading ?? alphaHeading;
 
   if (headingDegrees === null) {

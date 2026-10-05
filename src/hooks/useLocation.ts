@@ -23,6 +23,8 @@ export type ManualLocationInput = {
 };
 
 export type UseLocationOptions = {
+  mode?: "auto" | "gps" | "manual";
+  retryKey?: number;
   enabled?: boolean;
   cacheMaxAgeMs?: number;
   manualLocation?: ManualLocationInput | null;
@@ -31,6 +33,7 @@ export type UseLocationOptions = {
 };
 
 export type UseLocationResult = {
+  positionAgeSeconds: number | null;
   status: LocationStatus;
   permissionState: LocationPermissionState;
   gpsLocation: LocationSnapshot | null;
@@ -59,34 +62,38 @@ const GEOLOCATION_PERMISSION_DENIED = 1;
 
 export function useLocation(options: UseLocationOptions = {}): UseLocationResult {
   const {
+    mode = "auto",
+    retryKey = 0,
     enabled = true,
     cacheMaxAgeMs = DEFAULT_CACHE_MAX_AGE_MS,
     manualLocation: manualLocationInput = null,
     now = Date.now,
     watchOptions = DEFAULT_WATCH_OPTIONS,
   } = options;
-  const currentTime = now();
+  const [currentTime, setCurrentTime] = useState(now);
   const [permissionState, setPermissionState] = useState<LocationPermissionState>("unsupported");
-  const [gpsLocation, setGpsLocation] = useState<LocationSnapshot | null>(null);
-  const [cachedLocation, setCachedLocation] = useState<LocationSnapshot | null>(() =>
+  const [gpsSnapshot, setGpsLocation] = useState<LocationSnapshot | null>(null);
+  const [cachedSnapshot, setCachedLocation] = useState<LocationSnapshot | null>(() =>
     readCachedLocation(currentTime, cacheMaxAgeMs),
   );
+  const gpsLocation = useMemo(() => refreshFreshness(gpsSnapshot, currentTime, cacheMaxAgeMs), [gpsSnapshot, currentTime, cacheMaxAgeMs]);
+  const cachedLocation = useMemo(() => refreshFreshness(cachedSnapshot, currentTime, cacheMaxAgeMs), [cachedSnapshot, currentTime, cacheMaxAgeMs]);
   const [status, setStatus] = useState<LocationStatus>(() => getInitialStatus(enabled, cachedLocation));
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const manualLocation = useMemo(
-    () => createManualLocation(manualLocationInput, currentTime),
-    [currentTime, manualLocationInput],
+    () => createManualLocation(manualLocationInput, now()),
+    [manualLocationInput, now],
   );
-  const effectiveLocation = chooseEffectiveLocation(gpsLocation, cachedLocation, manualLocation);
+  const effectiveLocation = mode === "manual" ? manualLocation : chooseEffectiveLocation(enabled ? gpsLocation : null, cachedLocation, mode === "auto" ? manualLocation : null);
   const fallbackRef = useRef({
     cachedLocation,
-    manualLocation,
+    manualLocation: mode === "auto" ? manualLocation : null,
   });
 
   fallbackRef.current = {
     cachedLocation,
-    manualLocation,
+    manualLocation: mode === "auto" ? manualLocation : null,
   };
 
   useEffect(() => {
@@ -94,7 +101,21 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
   }, [cacheMaxAgeMs, now]);
 
   useEffect(() => {
-    if (!enabled) {
+    const refresh = () => setCurrentTime(now());
+    refresh();
+    const timer = window.setInterval(refresh, 1000);
+    window.addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("pageshow", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [now]);
+
+  useEffect(() => {
+    if (!enabled || mode === "manual") {
+      setGpsLocation(null);
       setStatus("idle");
       return;
     }
@@ -122,7 +143,7 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
       setPermissionState(state);
 
       if (state === "denied") {
-        setStatus(cachedLocation?.isStale ? "stale" : cachedLocation || manualLocation ? "ready" : "denied");
+        setStatus("denied");
         return;
       }
 
@@ -132,7 +153,9 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
             return;
           }
 
-          const timestamp = normalizeTimestamp(position.timestamp, now());
+          const readingTime = now();
+          setCurrentTime(readingTime);
+          const timestamp = Math.min(normalizeTimestamp(position.timestamp, readingTime), readingTime);
           const coordinate = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -159,7 +182,7 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
 
           previousSmoothedCoordinate = smoothedCoordinate;
           setGpsLocation(nextLocation);
-          setCachedLocation(nextLocation);
+          setCachedLocation({ ...nextLocation, source: "cache" });
           setStatus("ready");
           setErrorMessage(null);
           writeCachedLocation(nextLocation);
@@ -171,7 +194,7 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
 
           if (error.code === GEOLOCATION_PERMISSION_DENIED) {
             setPermissionState("denied");
-            setStatus(getFallbackStatus(fallbackRef.current.cachedLocation, fallbackRef.current.manualLocation) ?? "denied");
+            setStatus("denied");
             setErrorMessage(error.message || "Location permission denied.");
             return;
           }
@@ -192,10 +215,13 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [enabled, now, watchOptions]);
+  }, [enabled, mode, retryKey, now, watchOptions]);
 
   return {
-    status,
+    positionAgeSeconds: mode === "manual" || (gpsLocation ?? cachedLocation) === null ? null :
+      Math.max(0, Math.floor((currentTime - (gpsLocation ?? cachedLocation)!.timestamp) / 1000)),
+    status: mode === "manual" ? (manualLocation === null ? "idle" : "ready") :
+      effectiveLocation === null && (gpsLocation?.isStale || cachedLocation?.isStale) && status !== "denied" ? "stale" : status,
     permissionState,
     gpsLocation,
     cachedLocation,
@@ -222,7 +248,7 @@ function readCachedLocation(now: number, cacheMaxAgeMs: number): LocationSnapsho
     longitude: payload.longitude,
   };
 
-  if (!isCoordinate(coordinate) || typeof payload.timestamp !== "number" || !Number.isFinite(payload.timestamp)) {
+  if (!isCoordinate(coordinate) || typeof payload.timestamp !== "number" || !Number.isFinite(payload.timestamp) || payload.timestamp > now) {
     removeFromStorage(LOCATION_CACHE_KEY);
     return null;
   }
@@ -234,6 +260,12 @@ function readCachedLocation(now: number, cacheMaxAgeMs: number): LocationSnapsho
     accuracyMeters: normalizeAccuracy(payload.accuracyMeters),
     isStale: now - payload.timestamp > cacheMaxAgeMs,
   });
+}
+
+function refreshFreshness(snapshot: LocationSnapshot | null, time: number, maxAge: number): LocationSnapshot | null {
+  if (snapshot === null) return null;
+  const isStale = snapshot.timestamp > time || time - snapshot.timestamp >= maxAge;
+  return snapshot.isStale === isStale ? snapshot : { ...snapshot, isStale };
 }
 
 function writeCachedLocation(location: LocationSnapshot): void {

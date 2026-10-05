@@ -24,6 +24,7 @@ describe("useCompass", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     unsetDeviceOrientationEvent();
   });
@@ -101,14 +102,14 @@ describe("useCompass", () => {
     await waitFor(() => expect(result.current.status).toBe("listening"));
 
     act(() => {
-      dispatchOrientation({ alpha: 10 });
+      dispatchOrientation({ alpha: 10, absolute: true });
     });
 
     expect(result.current.headingDegrees).toBe(350);
     expect(result.current.cardinalDirection).toBe("N");
 
     act(() => {
-      dispatchOrientation({ alpha: 350 });
+      dispatchOrientation({ alpha: 350, absolute: true });
     });
 
     expect(result.current.headingDegrees).toBe(0);
@@ -144,6 +145,35 @@ describe("useCompass", () => {
 
     expect(removeEventListener).toHaveBeenCalledWith("deviceorientation", expect.any(Function));
   });
+  it("rejects relative alpha and invalidates the previous heading", () => {
+    installDeviceOrientationEvent();
+    const { result } = renderUseCompass();
+    act(() => dispatchOrientation({ alpha: 90, absolute: true }));
+    expect(result.current.headingDegrees).toBe(270);
+    act(() => dispatchOrientation({ alpha: 90, absolute: false }));
+    expect(result.current.headingDegrees).toBeNull();
+    expect(result.current.status).toBe("error");
+    act(() => dispatchOrientation({ webkitCompassHeading: 90, webkitCompassAccuracy: -1 }));
+    expect(result.current.headingDegrees).toBeNull();
+  });
+
+  it("expires stopped readings, handles sensors that never emit, and recovers", () => {
+    vi.useFakeTimers();
+    let clock = NOW;
+    const now = () => clock;
+    installDeviceOrientationEvent();
+    const { result } = renderHook(() => useCompass({ now }));
+    clock += 11_000;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(result.current.status).toBe("unavailable");
+    act(() => dispatchOrientation({ alpha: 90, absolute: true }));
+    expect(result.current.status).toBe("ready");
+    clock += 11_000;
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    expect(result.current.headingDegrees).toBeNull();
+    act(() => dispatchOrientation({ alpha: 0, absolute: true }));
+    expect(result.current.headingDegrees).toBe(0);
+  });
 });
 
 function installDeviceOrientationEvent(mock: OrientationConstructorMock = {}): void {
@@ -164,6 +194,7 @@ function unsetDeviceOrientationEvent(): void {
 }
 
 function dispatchOrientation(reading: {
+  absolute?: boolean;
   alpha?: number;
   webkitCompassHeading?: number;
   webkitCompassAccuracy?: number;
@@ -171,6 +202,7 @@ function dispatchOrientation(reading: {
   const event = new Event("deviceorientation");
 
   Object.defineProperties(event, {
+    absolute: { value: reading.absolute ?? false },
     alpha: {
       configurable: true,
       value: reading.alpha ?? null,

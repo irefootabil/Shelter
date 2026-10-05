@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { appCopy, emergencyContent } from "./content";
 
@@ -28,7 +28,7 @@ describe("App", () => {
   it("keeps key Romanian copy visible in the shell", () => {
     render(<App />);
 
-    expect(screen.getByText(appCopy.status.offlineReady)).toBeInTheDocument();
+    expect(screen.getAllByText(appCopy.status.offlineDetails.unavailable).length).toBeGreaterThan(0);
     expect(screen.getByText(appCopy.status.localOnly)).toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.install.caveat)).toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.location.fallback)).toBeInTheDocument();
@@ -86,6 +86,31 @@ describe("App", () => {
     expect(screen.getByText(appCopy.sections.compass.statusLabels.unavailable)).toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.compass.headingUnavailable)).toBeInTheDocument();
     expect(screen.getAllByText(appCopy.sections.compass.directionPrefix, { exact: false }).length).toBeGreaterThan(0);
+  });
+
+  it("lets users retry and stop GPS, then honors manual selection", async () => {
+    const original = Object.getOwnPropertyDescriptor(navigator, "geolocation");
+    const watchPosition = vi.fn(() => 42);
+    const clearWatch = vi.fn();
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: { watchPosition, clearWatch } });
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByRole("button", { name: appCopy.actions.enableLocation }));
+      await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(1));
+      fireEvent.click(screen.getByRole("button", { name: appCopy.actions.retryLocation }));
+      await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(2));
+      expect(clearWatch).toHaveBeenCalledWith(42);
+      fireEvent.click(screen.getByRole("button", { name: appCopy.actions.stopLocation }));
+      expect(screen.getByRole("radio", { name: appCopy.sections.location.manualMode })).toBeChecked();
+      expect(screen.queryByRole("button", { name: appCopy.actions.stopLocation })).not.toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "B" } });
+      fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Sector 1" } });
+      expect(await screen.findByText(appCopy.sections.location.sourceLabels.manual)).toBeInTheDocument();
+      expect(clearWatch).toHaveBeenCalledTimes(2);
+    } finally {
+      if (original) Object.defineProperty(navigator, "geolocation", original);
+      else Reflect.deleteProperty(navigator, "geolocation");
+    }
   });
 });
 

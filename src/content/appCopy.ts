@@ -4,6 +4,9 @@ export const appCopy = {
   subtitle:
     "Interfata este gandita pentru telefon, lumina slaba si momente in care reteaua poate cadea.",
   actions: {
+    stopLocation: "Opreste GPS",
+    retryLocation: "Reincearca GPS",
+    applyUpdate: "Actualizeaza si reincarca",
     findShelter: "Cauta adapost",
     emergencyGuide: "Instructiuni",
     installApp: "Instaleaza aplicatia",
@@ -16,6 +19,22 @@ export const appCopy = {
     sms113: "SMS 113",
   },
   status: {
+    connectionOnline: "Cu internet",
+    connectionOffline: "Fara internet",
+    offlineLabels: {
+      preparing: "Se salveaza offline",
+      ready: "Offline pregatit",
+      failed: "Offline nepregatit",
+      unavailable: "Offline indisponibil",
+      "update-available": "Actualizare pregatita",
+    },
+    offlineDetails: {
+      preparing: "Se descarca interfata si datele. Pastreaza pagina deschisa pana la confirmare.",
+      ready: "Interfata si datele acestei versiuni sunt salvate pentru folosire fara internet.",
+      failed: "Salvarea offline nu a fost confirmata. Cand ai internet, reincarca pagina si verifica din nou.",
+      unavailable: "Salvarea offline nu este disponibila aici. Foloseste versiunea publicata prin HTTPS.",
+      "update-available": "O versiune noua este salvata complet. Reincarca atunci cand este sigur sa intrerupi folosirea aplicatiei.",
+    },
     title: "Starea aplicatiei",
     labels: {
       offline: "Offline",
@@ -28,6 +47,11 @@ export const appCopy = {
   },
   sections: {
     location: {
+      modeLabel: "Sursa pozitiei",
+      gpsMode: "GPS",
+      manualMode: "Manual",
+      age: "Vechimea pozitiei",
+      seconds: "secunde",
       title: "Pozitia ta",
       status: "GPS sau cautare manuala",
       description:

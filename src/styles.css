@@ -113,6 +113,9 @@ p {
 }
 
 .network-pill {
+  max-width: 45%;
+  white-space: normal;
+  text-align: center;
   flex: 0 0 auto;
   border: 1px solid rgba(141, 255, 218, 0.28);
   border-radius: 999px;
@@ -312,6 +315,28 @@ button.secondary-action:disabled {
   display: grid;
   gap: 0.75rem;
 }
+
+.location-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+}
+
+.location-modes label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  cursor: pointer;
+}
+
+.location-modes input { accent-color: #b8f7d4; }
+.location-modes input:focus-visible { outline: 3px solid #8dffda; outline-offset: 3px; }
 
 .manual-grid label {
   display: grid;

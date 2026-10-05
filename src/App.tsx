@@ -5,6 +5,7 @@ import { useCompass, type CompassCalibrationState, type CompassStatus } from "./
 import { useLocation, type LocationSnapshot, type LocationStatus } from "./hooks/useLocation";
 import { getBearingDegrees, getCardinalDirection, type CardinalDirection } from "./lib/geo";
 import { rankShelters, type RankedShelter } from "./lib/ranking";
+import { applyOfflineUpdate, useNetworkOnline, useOfflineStatus } from "./registerServiceWorker";
 
 const statusItems = [
   {
@@ -27,6 +28,10 @@ type ManualSelection = {
 };
 
 export function App() {
+  const offlineStatus = useOfflineStatus();
+  const networkOnline = useNetworkOnline();
+  const [locationMode, setLocationMode] = useState<"gps" | "manual">("manual");
+  const [gpsRetryKey, setGpsRetryKey] = useState(0);
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [manualSelection, setManualSelection] = useState<ManualSelection>({
     countyId: "",
@@ -41,9 +46,12 @@ export function App() {
         : getTownCenter(selectedCounty.shelters, manualSelection.town),
     [manualSelection.town, selectedCounty],
   );
+  const manualInput = useMemo(() => manualLocation === null ? null : { coordinate: manualLocation }, [manualLocation]);
   const location = useLocation({
+    mode: locationMode,
+    retryKey: gpsRetryKey,
     enabled: gpsEnabled,
-    manualLocation: manualLocation === null ? null : { coordinate: manualLocation },
+    manualLocation: manualInput,
   });
   const compass = useCompass();
   const ranking = useMemo(
@@ -65,7 +73,15 @@ export function App() {
   const primaryDistance = ranking.primary === null ? "-- km" : formatDistance(ranking.primary.distanceMeters);
 
   function updateCounty(countyId: string): void {
+    setLocationMode("manual");
+    setGpsEnabled(false);
     setManualSelection({ countyId, town: "" });
+  }
+
+  function startGps(): void {
+    setLocationMode("gps");
+    setGpsEnabled(true);
+    setGpsRetryKey((key) => key + 1);
   }
 
   return (
@@ -77,7 +93,7 @@ export function App() {
           </span>
           <span>{appCopy.productLabel}</span>
         </a>
-        <span className="network-pill">{statusItems[0].label}</span>
+        <span className="network-pill" role="status">{appCopy.status.offlineLabels[offlineStatus]}</span>
       </header>
 
       <main id="top" className="app-shell">
@@ -101,7 +117,7 @@ export function App() {
             {statusItems.map((item) => (
               <article className="status-card" key={item.label}>
                 <p className="card-kicker">{item.label}</p>
-                <p>{item.text}</p>
+                <p>{item === statusItems[0] ? appCopy.status.offlineDetails[offlineStatus] : item.text}</p>
               </article>
             ))}
           </div>
@@ -111,6 +127,8 @@ export function App() {
           <div>
             <p className="card-kicker">{appCopy.sections.install.status}</p>
             <h2 id="install-title">{appCopy.sections.install.title}</h2>
+            <p role="status">{appCopy.status.offlineDetails[offlineStatus]}</p>
+            <p>{networkOnline ? appCopy.status.connectionOnline : appCopy.status.connectionOffline}</p>
             <p>{appCopy.sections.install.description}</p>
           </div>
           <ol className="install-checklist">
@@ -119,6 +137,9 @@ export function App() {
             ))}
           </ol>
           <p className="quiet-note">{appCopy.sections.install.caveat}</p>
+          {offlineStatus === "update-available" ? (
+            <button type="button" className="primary-action" onClick={applyOfflineUpdate}>{appCopy.actions.applyUpdate}</button>
+          ) : null}
         </section>
 
         <section className="panel location-panel" aria-labelledby="location-title">
@@ -127,10 +148,16 @@ export function App() {
             <h2 id="location-title">{appCopy.sections.location.title}</h2>
             <p>{appCopy.sections.location.description}</p>
           </div>
+          <fieldset className="location-modes">
+            <legend>{appCopy.sections.location.modeLabel}</legend>
+            <label><input type="radio" name="location-mode" checked={locationMode === "gps"} onChange={startGps} />{appCopy.sections.location.gpsMode}</label>
+            <label><input type="radio" name="location-mode" checked={locationMode === "manual"} onChange={() => { setLocationMode("manual"); setGpsEnabled(false); }} />{appCopy.sections.location.manualMode}</label>
+          </fieldset>
           <div className="control-row">
-            <button type="button" className="primary-action" onClick={() => setGpsEnabled(true)} disabled={gpsEnabled}>
-              {appCopy.actions.enableLocation}
+            <button type="button" className="primary-action" onClick={startGps}>
+              {gpsEnabled ? appCopy.actions.retryLocation : appCopy.actions.enableLocation}
             </button>
+            {gpsEnabled ? <button type="button" className="secondary-action" onClick={() => { setGpsEnabled(false); setLocationMode("manual"); }}>{appCopy.actions.stopLocation}</button> : null}
             <a className="secondary-action" href="#manual-location">
               {appCopy.actions.manualSearch}
             </a>
@@ -140,6 +167,7 @@ export function App() {
               <strong>{sourceLabel}</strong>
               <span>{statusLabel}</span>
             </p>
+            {location.positionAgeSeconds === null ? null : <p>{appCopy.sections.location.age}: {location.positionAgeSeconds} {appCopy.sections.location.seconds}</p>}
             <p>
               {location.effectiveLocation?.accuracyMeters === null || location.effectiveLocation === null
                 ? appCopy.sections.location.noAccuracy
@@ -162,7 +190,7 @@ export function App() {
               <span>{appCopy.actions.chooseTown}</span>
               <select
                 value={manualSelection.town}
-                onChange={(event) => setManualSelection((current) => ({ ...current, town: event.target.value }))}
+                onChange={(event) => { setLocationMode("manual"); setGpsEnabled(false); setManualSelection((current) => ({ ...current, town: event.target.value })); }}
                 disabled={selectedCounty === null}
               >
                 <option value="">{appCopy.sections.location.manualTownPlaceholder}</option>

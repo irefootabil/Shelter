@@ -31,6 +31,7 @@ describe("useLocation", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     window.localStorage.clear();
   });
@@ -167,6 +168,60 @@ describe("useLocation", () => {
       coordinate: clujNapoca,
       source: "manual",
     });
+  });
+  it("manual mode overrides cache, stops the watch, and clearing selection removes the effective position", async () => {
+    const geo = installGeolocationMock();
+    const { result, rerender } = renderHook(({ mode, manual }: { mode: "gps" | "manual"; manual: boolean }) =>
+      useLocation({ now: fixedNow, mode, manualLocation: manual ? { coordinate: clujNapoca } : null }),
+      { initialProps: { mode: "gps", manual: true } });
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    expect(result.current.status).toBe("loading");
+    expect(result.current.effectiveLocation).toBeNull();
+    act(() => geo.emitSuccess(createPosition(bucharest, NOW, 8)));
+    expect(result.current.effectiveLocation?.source).toBe("gps");
+    rerender({ mode: "manual", manual: true });
+    expect(result.current.effectiveLocation?.coordinate).toEqual(clujNapoca);
+    expect(geo.clearWatch).toHaveBeenCalledWith(42);
+    rerender({ mode: "manual", manual: false });
+    expect(result.current.effectiveLocation).toBeNull();
+  });
+
+  it("expires GPS while open, refreshes on resume, and recovers on a new reading", async () => {
+    vi.useFakeTimers();
+    let clock = NOW;
+    const now = () => clock;
+    const geo = installGeolocationMock();
+    const { result } = renderHook(() => useLocation({ now, cacheMaxAgeMs: 5000, mode: "gps" }));
+    await act(async () => { await Promise.resolve(); });
+    act(() => geo.emitSuccess(createPosition(bucharest, NOW, 8)));
+    clock += 6000;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(result.current.status).toBe("stale");
+    expect(result.current.effectiveLocation).toBeNull();
+    expect(result.current.positionAgeSeconds).toBe(6);
+    act(() => geo.emitSuccess(createPosition(clujNapoca, clock, 10)));
+    expect(result.current.status).toBe("ready");
+    clock += 6000;
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    expect(result.current.effectiveLocation).toBeNull();
+  });
+
+  it("expires cached positions and restarts the GPS watch on retry", async () => {
+    vi.useFakeTimers();
+    let clock = NOW;
+    const now = () => clock;
+    writeCachedLocation({ ...bucharest, timestamp: NOW });
+    const geo = installGeolocationMock();
+    const { result, rerender } = renderHook(({ retryKey }) => useLocation({ now, cacheMaxAgeMs: 5000, retryKey }), { initialProps: { retryKey: 0 } });
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.effectiveLocation?.source).toBe("cache");
+    clock += 6000;
+    act(() => window.dispatchEvent(new Event("pageshow")));
+    expect(result.current.effectiveLocation).toBeNull();
+    rerender({ retryKey: 1 });
+    await act(async () => { await Promise.resolve(); });
+    expect(geo.clearWatch).toHaveBeenCalledWith(42);
+    expect(geo.watchPosition).toHaveBeenCalledTimes(2);
   });
 });
 

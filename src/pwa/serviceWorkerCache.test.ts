@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 
 const source = readFileSync(resolve("public/sw.js"), "utf8");
 const origin = "https://example.test";
-type CacheStore = Map<string, Map<string, Response>>;
+type CacheEntry = { response: Response; requestHeaders: Headers };
+type CacheStore = Map<string, Map<string, CacheEntry>>;
 
 function worker(version: string, stores: CacheStore = new Map(), base = "/Shelter/") {
   const handlers: Record<string, (event: any) => void> = {};
@@ -25,12 +26,21 @@ function worker(version: string, stores: CacheStore = new Map(), base = "/Shelte
       if (!stores.has(name)) stores.set(name, new Map());
       const entries = stores.get(name)!;
       return {
-        put: async (input: string | Request, response: Response) => { entries.set(key(input), response.clone()); },
-        match: async (input: string | Request) => entries.get(key(input))?.clone(),
+        put: async (input: string | Request, response: Response) => {
+          entries.set(key(input), { response: response.clone(), requestHeaders: typeof input === "string" ? new Headers() : input.headers });
+        },
+        match: async (input: string | Request, options?: CacheQueryOptions) => {
+          const entry = entries.get(key(input));
+          if (!entry) return undefined;
+          const queryHeaders = typeof input === "string" ? new Headers() : input.headers;
+          const vary = entry.response.headers.get("Vary")?.split(",").map((header) => header.trim()) ?? [];
+          if (!options?.ignoreVary && vary.some((header) => header === "*" || queryHeaders.get(header) !== entry.requestHeaders.get(header))) return undefined;
+          return entry.response.clone();
+        },
         addAll: async (urls: string[]) => {
           const responses = await Promise.all(urls.map((url) => network(url)));
           if (responses.some((r) => !r.ok)) throw new Error("Download failed");
-          urls.forEach((url, i) => entries.set(key(url), responses[i].clone()));
+          urls.forEach((url, i) => entries.set(key(url), { response: responses[i].clone(), requestHeaders: new Headers() }));
         },
       };
     },
@@ -92,6 +102,25 @@ describe("service worker release cache behavior", () => {
     await expect(update.event("install")).rejects.toThrow();
     expect(old.stores.has(update.cacheName)).toBe(false);
     expect(await old.ready()).toBe(true);
+  });
+
+  it("serves immutable precached modules despite Origin variation from a static host", async () => {
+    const w = worker("one");
+    w.network.mockImplementation(async (input) => new Response(
+      typeof input === "string" && input.endsWith("index.html") ?
+        '<script src="/Shelter/assets/app-one.js"></script>' : "asset-one",
+      { headers: { Vary: "Origin" } },
+    ));
+    await w.event("install");
+    expect(await w.ready()).toBe(true);
+    const request = new Request(origin + "/Shelter/assets/app-one.js", { headers: { Origin: origin } });
+    const cache = await w.caches.open(w.cacheName);
+    expect(await cache.match(request)).toBeUndefined();
+    w.network.mockRejectedValue(new Error("offline"));
+    const asset = await w.event("fetch", { request });
+    expect(asset?.status).toBe(200);
+    expect(await asset?.text()).toBe("asset-one");
+    expect(w.network).toHaveBeenCalledTimes(4);
   });
 
   it("waits for explicit update approval and deletes only obsolete caches owned by its scope", async () => {

@@ -28,7 +28,8 @@ self.addEventListener("fetch", (event) => {
       await cache.match(APP_SHELL_URL) ?? fetch(event.request)));
   } else if (url.pathname.startsWith(APP_ASSETS_URL) || CORE_ASSETS.includes(url.pathname)) {
     event.respondWith(caches.open(APP_SHELL_CACHE).then(async (cache) => {
-      const cached = await cache.match(event.request);
+      // These are same-origin, release-scoped static files, not personalized responses.
+      const cached = await cache.match(event.request, { ignoreVary: true });
       if (cached) return cached;
       return fetch(event.request).catch(() => new Response("Asset unavailable offline.", { status: 504 }));
     }));

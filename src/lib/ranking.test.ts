@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Shelter } from "../data";
 import type { Coordinate } from "./geo";
 import { rankShelters } from "./ranking";
+import { shelters as vendoredShelters } from "../data";
+import { referenceRanking } from "../test/rankingReference";
 
 const userCoordinate: Coordinate = { latitude: 44.4268, longitude: 26.1025 };
 
@@ -21,6 +23,29 @@ function makeShelter(overrides: Partial<Shelter>): Shelter {
 }
 
 describe("rankShelters", () => {
+  it("matches the previous policy on the full dataset for both selection paths", () => {
+    for (const coordinate of [userCoordinate, { latitude: 46.7712, longitude: 23.6236 }]) {
+      for (const limit of [undefined, 0, 1, 4, 16, 17, 100, 10_000, -1, 2.9, Number.NaN, Infinity]) {
+        expect(rankShelters(coordinate, vendoredShelters, { limit })).toEqual(referenceRanking(coordinate, vendoredShelters, { limit }));
+      }
+    }
+  });
+
+  it("preserves stable input ties, skips invalid candidates and does not mutate input", () => {
+    const candidates = [
+      makeShelter({ id: "z", address: "Tie" }),
+      makeShelter({ id: "a", address: "Tie", capacity: 1 }),
+      makeShelter({ id: "a", address: "Tie", capacity: 2 }),
+      makeShelter({ id: "invalid", latitude: Number.NaN }),
+      makeShelter({ id: "far", latitude: 45 }),
+    ];
+    const original = structuredClone(candidates);
+    for (const limit of [0, 1, 2, 4, 16, 17, undefined]) {
+      expect(rankShelters(userCoordinate, candidates, { limit })).toEqual(referenceRanking(userCoordinate, candidates, { limit }));
+    }
+    expect(candidates).toEqual(original);
+  });
+
   it("chooses the nearest functional shelter before closer lower-priority statuses", () => {
     const shelters = [
       makeShelter({ id: "partial-near", address: "Adresa 1", latitude: 44.427, status: "partial" }),

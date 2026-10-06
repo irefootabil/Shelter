@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { appCopy, emergencyContent } from "./content";
+import * as locationModule from "./hooks/useLocation";
+import * as rankingModule from "./lib/ranking";
 
 describe("App", () => {
   beforeEach(() => {
@@ -10,7 +12,38 @@ describe("App", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     unsetDeviceOrientationEvent();
+  });
+
+  it("reranks only for coordinate availability or value changes, not GPS metadata", () => {
+    const snapshot: locationModule.LocationSnapshot = {
+      coordinate: { latitude: 44.4268, longitude: 26.1025 },
+      source: "gps", timestamp: Date.now(), accuracyMeters: 10, isStale: false,
+    };
+    const result: locationModule.UseLocationResult = {
+      positionAgeSeconds: 0, status: "ready", permissionState: "granted",
+      gpsLocation: snapshot, cachedLocation: null, manualLocation: null,
+      effectiveLocation: snapshot, errorMessage: null,
+    };
+    const location = vi.spyOn(locationModule, "useLocation").mockReturnValue(result);
+    const rank = vi.spyOn(rankingModule, "rankShelters");
+    const view = render(<App />);
+    expect(rank).toHaveBeenCalledTimes(1);
+    location.mockReturnValue({ ...result, positionAgeSeconds: 1, effectiveLocation: {
+      ...snapshot, coordinate: { ...snapshot.coordinate }, source: "cache", accuracyMeters: 20,
+    } });
+    view.rerender(<App />);
+    expect(rank).toHaveBeenCalledTimes(1);
+    location.mockReturnValue({ ...result, effectiveLocation: { ...snapshot, coordinate: { latitude: 46.7712, longitude: 23.6236 } } });
+    view.rerender(<App />);
+    expect(rank).toHaveBeenCalledTimes(2);
+    location.mockReturnValue({ ...result, effectiveLocation: null, status: "stale" });
+    view.rerender(<App />);
+    expect(screen.getByText(appCopy.sections.shelter.listPlaceholder)).toBeInTheDocument();
+    location.mockReturnValue(result);
+    view.rerender(<App />);
+    expect(rank).toHaveBeenCalledTimes(3);
   });
 
   it("renders the main mobile shell landmarks", () => {

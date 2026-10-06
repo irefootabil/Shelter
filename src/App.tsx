@@ -5,7 +5,7 @@ import { useNavigationInsets } from "./hooks/useNavigationInsets";
 import { shelterCountyGroups, shelters, shelterDataSource, type Shelter, type ShelterStatus } from "./data";
 import { useCompass, type CompassCalibrationState, type CompassStatus } from "./hooks/useCompass";
 import { useLocation, type LocationSnapshot, type LocationStatus } from "./hooks/useLocation";
-import { getBearingDegrees, getCardinalDirection, type CardinalDirection } from "./lib/geo";
+import { getBearingDegrees, getCardinalDirection, type CardinalDirection, type Coordinate } from "./lib/geo";
 import { rankShelters, type RankedShelter } from "./lib/ranking";
 import { applyOfflineUpdate, useNetworkOnline, useOfflineStatus } from "./registerServiceWorker";
 
@@ -57,19 +57,25 @@ export function App() {
     manualLocation: manualInput,
   });
   const compass = useCompass();
+  const latitude = location.effectiveLocation?.coordinate.latitude;
+  const longitude = location.effectiveLocation?.coordinate.longitude;
+  const rankingCoordinate = useMemo(
+    () => latitude === undefined || longitude === undefined ? null : { latitude, longitude },
+    [latitude, longitude],
+  );
   const ranking = useMemo(
     () =>
-      location.effectiveLocation === null
+      rankingCoordinate === null
         ? { primary: null, nearest: [] }
-        : rankShelters(location.effectiveLocation.coordinate, shelters, { limit: 4 }),
-    [location.effectiveLocation],
+        : rankShelters(rankingCoordinate, shelters, { limit: 4 }),
+    [rankingCoordinate],
   );
   const targetDirection = useMemo(
     () =>
-      location.effectiveLocation === null || ranking.primary === null
+      rankingCoordinate === null || ranking.primary === null
         ? null
-        : getTargetDirection(location.effectiveLocation, ranking.primary.shelter),
-    [location.effectiveLocation, ranking.primary],
+        : getTargetDirection(rankingCoordinate, ranking.primary.shelter),
+    [rankingCoordinate, ranking.primary],
   );
   const sourceLabel = getLocationSourceLabel(location.effectiveLocation);
   const statusLabel = getLocationStatusLabel(location.status, location.effectiveLocation);
@@ -395,11 +401,11 @@ function getLocationStatusLabel(status: LocationStatus, effectiveLocation: Locat
   return appCopy.sections.location.permissionLabels[status];
 }
 
-function getTargetDirection(location: LocationSnapshot, shelter: Shelter): {
+function getTargetDirection(coordinate: Coordinate, shelter: Shelter): {
   bearingDegrees: number;
   cardinalDirection: CardinalDirection;
 } {
-  const bearingDegrees = getBearingDegrees(location.coordinate, {
+  const bearingDegrees = getBearingDegrees(coordinate, {
     latitude: shelter.latitude,
     longitude: shelter.longitude,
   });

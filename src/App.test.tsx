@@ -163,7 +163,7 @@ describe("App", () => {
     expect(screen.queryByText(/Camera de Comerț/)).not.toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.shelter.manualBrowsingNote)).toBeInTheDocument();
     expect(screen.queryByText(appCopy.sections.shelter.fields.distance)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: appCopy.actions.searchOtherLocality }));
+    expect(fireEvent.click(screen.getByRole("link", { name: appCopy.actions.searchOtherLocality }))).toBe(false);
     expect(screen.getByLabelText(appCopy.actions.chooseCounty)).toHaveFocus();
     fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "CJ" } });
     expect(screen.getByLabelText(appCopy.actions.chooseTown)).toHaveValue("");

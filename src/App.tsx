@@ -295,7 +295,11 @@ export function App() {
                   ))}
                 </div>
                 <a className="secondary-action" href="#manual-location"
-                  onClick={() => document.getElementById("manual-county")?.focus()}>
+                  onClick={(event) => {
+                    // Native fragment navigation can override selector focus on older Chrome.
+                    event.preventDefault();
+                    document.getElementById("manual-county")?.focus();
+                  }}>
                   {appCopy.actions.searchOtherLocality}
                 </a>
               </>

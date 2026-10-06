@@ -71,12 +71,11 @@ describe("App", () => {
   });
 
   it("announces status changes without including compass telemetry or whole result cards", async () => {
+    vi.spyOn(locationModule, "useLocation").mockReturnValue(gpsResult());
     const { container } = render(<App />);
-    const source = screen.getByText(appCopy.sections.location.sourceLabels.none);
+    const source = screen.getByText(appCopy.sections.location.sourceLabels.gps);
     expect(source.closest('[role="status"]')).not.toBeNull();
     expect(container.querySelector(".location-summary")).not.toHaveAttribute("aria-live");
-    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "B" } });
-    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Sector 1" } });
     const heading = await screen.findByText(appCopy.sections.compass.headingUnavailable);
     expect(heading.closest('[role="status"], [aria-live]')).toBeNull();
     expect(screen.getByText(appCopy.sections.compass.statusLabels.unavailable).closest('[role="status"]')).not.toBeNull();
@@ -121,7 +120,7 @@ describe("App", () => {
     expect(screen.getByText("-- km")).toBeInTheDocument();
   });
 
-  it("uses manual county and town selection to render ranked shelters", async () => {
+  it("uses manual selection for a local address list without recommendations or position claims", async () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "B" } });
@@ -129,25 +128,30 @@ describe("App", () => {
 
     expect(await screen.findByText(appCopy.sections.location.sourceLabels.manual)).toBeInTheDocument();
     expect(screen.getByText(`${appCopy.sections.location.manualSelection}: Bucuresti, Sector 1`)).toBeInTheDocument();
-    expect(screen.getByText(appCopy.sections.shelter.primaryLabel)).toBeInTheDocument();
+    expect(screen.queryByText(appCopy.sections.shelter.primaryLabel)).not.toBeInTheDocument();
+    expect(screen.getByText(appCopy.sections.location.manualBrowsing)).toBeInTheDocument();
+    expect(screen.queryByText(appCopy.sections.location.permissionLabels.ready)).not.toBeInTheDocument();
+    expect(screen.queryByText(appCopy.sections.location.noAccuracy)).not.toBeInTheDocument();
+    expect(screen.queryByText("-- km")).not.toBeInTheDocument();
+    expect(screen.queryByText(appCopy.sections.shelter.fields.distance)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: appCopy.sections.compass.title })).not.toBeInTheDocument();
     expect(screen.getByLabelText(appCopy.sections.shelter.localListLabel)).toBeInTheDocument();
     expect(screen.queryByText(appCopy.sections.shelter.listPlaceholder)).not.toBeInTheDocument();
   });
 
   it("shows a text direction cue and keeps recommendations usable when compass is unavailable", async () => {
+    vi.spyOn(locationModule, "useLocation").mockReturnValue(gpsResult());
     render(<App />);
-
-    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "B" } });
-    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Sector 1" } });
 
     expect(await screen.findByRole("heading", { name: appCopy.sections.compass.title })).toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.shelter.primaryLabel)).toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.compass.statusLabels.unavailable)).toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.compass.headingUnavailable)).toBeInTheDocument();
-    expect(screen.getAllByText(appCopy.sections.compass.manualDirectionPrefix, { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(appCopy.sections.compass.directionPrefix, { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(appCopy.sections.shelter.fields.distance).length).toBeGreaterThan(0);
   });
 
-  it("separates Turnu Magurele local records from the distant functional alternative", async () => {
+  it("keeps Turnu local and offers an explicit locality change instead of Giurgiu", async () => {
     render(<App />);
     fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "TR" } });
     fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Turnu Măgurele" } });
@@ -155,11 +159,35 @@ describe("App", () => {
     const local = screen.getByLabelText(appCopy.sections.shelter.localListLabel);
     expect(within(local).getAllByText("partial").length).toBeGreaterThan(0);
     expect(within(local).queryByText(/Camera de Comerț/)).not.toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: appCopy.sections.shelter.alternativeLabel }))
-      .getByText(/Camera de Comerț/)).toBeInTheDocument();
-    expect(screen.getByText(appCopy.sections.shelter.manualDistanceNote)).toBeInTheDocument();
+    expect(local.querySelectorAll("article")).toHaveLength(14);
+    expect(screen.queryByText(/Camera de Comerț/)).not.toBeInTheDocument();
+    expect(screen.getByText(appCopy.sections.shelter.manualBrowsingNote)).toBeInTheDocument();
+    expect(screen.queryByText(appCopy.sections.shelter.fields.distance)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: appCopy.actions.searchOtherLocality }));
+    expect(screen.getByLabelText(appCopy.actions.chooseCounty)).toHaveFocus();
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "CJ" } });
+    expect(screen.getByLabelText(appCopy.actions.chooseTown)).toHaveValue("");
+    expect(screen.queryByLabelText(appCopy.sections.shelter.localListLabel)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: appCopy.sections.compass.title })).not.toBeInTheDocument();
     expect(screen.queryByText(appCopy.sections.shelter.primaryLabel)).not.toBeInTheDocument();
+  });
+
+  it("keeps manual browsing independent of a cached phone location", () => {
+    const result = gpsResult();
+    const cached = { ...result.effectiveLocation!, source: "cache" as const };
+    const location = vi.spyOn(locationModule, "useLocation").mockReturnValue({
+      ...result, gpsLocation: null, cachedLocation: cached, effectiveLocation: cached,
+    });
+    const rank = vi.spyOn(rankingModule, "rankShelters");
+    render(<App />);
+    expect(rank).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "CJ" } });
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Huedin" } });
+    expect(rank).toHaveBeenCalledTimes(1);
+    expect(location.mock.calls.at(-1)?.[0]).not.toHaveProperty("manualLocation");
+    expect(screen.getByLabelText(appCopy.sections.shelter.localListLabel).querySelectorAll("article")).toHaveLength(4);
+    expect(screen.queryByText(appCopy.sections.shelter.fields.distance)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: appCopy.sections.compass.title })).not.toBeInTheDocument();
   });
 
   it("keeps the suspect Huedin record visible but removes its misleading distance", async () => {
@@ -169,7 +197,7 @@ describe("App", () => {
     const address = await screen.findByRole("heading", { name: "Str. Republicii nr. 39-42" });
     const record = within(address.closest("article")!);
     expect(record.getByText(appCopy.sections.shelter.suspectCoordinate)).toBeInTheDocument();
-    expect(record.getByText(appCopy.sections.shelter.distanceUncertain)).toBeInTheDocument();
+    expect(record.queryByText(appCopy.sections.shelter.fields.distance)).not.toBeInTheDocument();
     expect(record.queryByText(/km/)).not.toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.shelter.noLocalFunctional)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: appCopy.sections.compass.title })).not.toBeInTheDocument();
@@ -203,4 +231,14 @@ describe("App", () => {
 
 function unsetDeviceOrientationEvent(): void {
   Reflect.deleteProperty(window, "DeviceOrientationEvent");
+}
+
+function gpsResult(): locationModule.UseLocationResult {
+  const snapshot: locationModule.LocationSnapshot = {
+    coordinate: { latitude: 44.4268, longitude: 26.1025 }, source: "gps",
+    timestamp: Date.now(), accuracyMeters: 10, isStale: false,
+  };
+  return { positionAgeSeconds: 0, status: "ready", permissionState: "granted",
+    gpsLocation: snapshot, cachedLocation: null, manualLocation: null,
+    effectiveLocation: snapshot, errorMessage: null };
 }

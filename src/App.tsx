@@ -6,8 +6,8 @@ import { shelterCountyGroups, shelters, shelterDataSource, type Shelter, type Sh
 import { useCompass, type CompassCalibrationState, type CompassStatus } from "./hooks/useCompass";
 import { useLocation, type LocationSnapshot, type LocationStatus } from "./hooks/useLocation";
 import { getBearingDegrees, getCardinalDirection, type CardinalDirection, type Coordinate } from "./lib/geo";
-import { rankShelters, type RankedShelter } from "./lib/ranking";
-import { estimateTownLocation, rankManualShelters } from "./lib/manualShelters";
+import { rankShelters } from "./lib/ranking";
+import { estimateTownLocation, listManualShelters } from "./lib/manualShelters";
 import { applyOfflineUpdate, useNetworkOnline, useOfflineStatus } from "./registerServiceWorker";
 
 const statusItems = [
@@ -50,12 +50,10 @@ export function App() {
         : estimateTownLocation(selectedCounty.shelters.filter((shelter) => shelter.town === manualSelection.town)),
     [manualSelection.town, selectedCounty],
   );
-  const manualInput = useMemo(() => manualLocation === null ? null : { coordinate: manualLocation.coordinate }, [manualLocation]);
   const location = useLocation({
     mode: locationMode,
     retryKey: gpsRetryKey,
     enabled: gpsEnabled,
-    manualLocation: manualInput,
   });
   const compass = useCompass();
   const latitude = location.effectiveLocation?.coordinate.latitude;
@@ -64,15 +62,16 @@ export function App() {
     () => latitude === undefined || longitude === undefined ? null : { latitude, longitude },
     [latitude, longitude],
   );
-  const isManualSearch = location.effectiveLocation?.source === "manual" && manualLocation !== null && selectedCounty !== null;
+  const isManualSearch = locationMode === "manual" && manualSelection.town !== "" && selectedCounty !== null;
+  const manualShelters = useMemo(() => selectedCounty === null ? []
+    : listManualShelters(selectedCounty.shelters, selectedCounty.id, manualSelection.town),
+  [selectedCounty, manualSelection.town]);
   const ranking = useMemo(
     () =>
-      rankingCoordinate === null
-        ? { primary: null, nearest: [], alternative: null }
-        : isManualSearch && manualLocation !== null && selectedCounty !== null
-          ? rankManualShelters(rankingCoordinate, shelters, selectedCounty.id, manualSelection.town, manualLocation.suspectIds)
-          : { ...rankShelters(rankingCoordinate, shelters, { limit: 4 }), alternative: null },
-    [rankingCoordinate, isManualSearch, manualLocation, selectedCounty, manualSelection.town],
+      rankingCoordinate === null || isManualSearch
+        ? { primary: null, nearest: [] }
+        : rankShelters(rankingCoordinate, shelters, { limit: 4 }),
+    [rankingCoordinate, isManualSearch],
   );
   const targetDirection = useMemo(
     () =>
@@ -81,8 +80,8 @@ export function App() {
         : getTargetDirection(rankingCoordinate, ranking.primary.shelter),
     [rankingCoordinate, ranking.primary],
   );
-  const sourceLabel = getLocationSourceLabel(location.effectiveLocation);
-  const statusLabel = getLocationStatusLabel(location.status, location.effectiveLocation);
+  const sourceLabel = isManualSearch ? appCopy.sections.location.sourceLabels.manual : getLocationSourceLabel(location.effectiveLocation);
+  const statusLabel = isManualSearch ? appCopy.sections.location.manualBrowsing : getLocationStatusLabel(location.status, location.effectiveLocation);
   const primaryDistance = ranking.primary === null ? "-- km" : formatDistance(ranking.primary.distanceMeters);
 
   function updateCounty(countyId: string): void {
@@ -183,17 +182,17 @@ export function App() {
               <strong>{sourceLabel}</strong>
               <span>{statusLabel}</span>
             </p>
-            {location.positionAgeSeconds === null ? null : <p>{appCopy.sections.location.age}: {location.positionAgeSeconds} {appCopy.sections.location.seconds}</p>}
-            <p>
+            {locationMode === "manual" || location.positionAgeSeconds === null ? null : <p>{appCopy.sections.location.age}: {location.positionAgeSeconds} {appCopy.sections.location.seconds}</p>}
+            {locationMode === "manual" ? null : <p>
               {location.effectiveLocation?.accuracyMeters === null || location.effectiveLocation === null
                 ? appCopy.sections.location.noAccuracy
                 : `${appCopy.sections.location.accuracy}: ${formatDistance(location.effectiveLocation.accuracyMeters)}`}
-            </p>
+            </p>}
           </div>
           <div id="manual-location" className="manual-grid">
             <label>
               <span>{appCopy.actions.chooseCounty}</span>
-              <select value={manualSelection.countyId} onChange={(event) => updateCounty(event.target.value)}>
+              <select id="manual-county" value={manualSelection.countyId} onChange={(event) => updateCounty(event.target.value)}>
                 <option value="">{appCopy.sections.location.manualCountyPlaceholder}</option>
                 {shelterCountyGroups.map((group) => (
                   <option key={group.id} value={group.id}>
@@ -230,13 +229,13 @@ export function App() {
         <section id="nearby" className="panel shelter-panel" aria-labelledby="shelter-title">
           <div className="section-heading">
             <div>
-              <p className="card-kicker">{appCopy.sections.shelter.status}</p>
+              <p className="card-kicker">{isManualSearch ? appCopy.sections.shelter.manualStatus : appCopy.sections.shelter.status}</p>
               <h2 id="shelter-title">{isManualSearch ? appCopy.sections.shelter.manualTitle : appCopy.sections.shelter.title}</h2>
             </div>
-            <span className="distance-placeholder">{primaryDistance}</span>
+            {isManualSearch ? null : <span className="distance-placeholder">{primaryDistance}</span>}
           </div>
           <p>{isManualSearch ? appCopy.sections.shelter.manualDescription : appCopy.sections.shelter.description}</p>
-          {isManualSearch ? <p className="quiet-note">{appCopy.sections.shelter.manualDistanceNote}</p> : null}
+          {isManualSearch ? <p className="quiet-note">{appCopy.sections.shelter.manualBrowsingNote}</p> : null}
           {targetDirection === null ? null : (
             <section className="compass-card" aria-labelledby="compass-title">
               <div className="compass-heading-row">
@@ -250,7 +249,7 @@ export function App() {
                 </span>
               </div>
               <p>
-                {isManualSearch ? appCopy.sections.compass.manualDirectionPrefix : appCopy.sections.compass.directionPrefix}{" "}
+                {appCopy.sections.compass.directionPrefix}{" "}
                 <strong>{appCopy.sections.compass.cardinalLabels[targetDirection.cardinalDirection]}</strong>
               </p>
               <div className="compass-status">
@@ -287,33 +286,30 @@ export function App() {
             <h3>{isManualSearch ? appCopy.sections.shelter.localListLabel : appCopy.sections.shelter.listTitle}</h3>
             {isManualSearch ? (
               <>
-                {ranking.primary === null ? <p>{appCopy.sections.shelter.noLocalFunctional}</p>
-                  : <ShelterResult result={ranking.primary} label={appCopy.sections.shelter.primaryLabel} />}
+                {manualShelters.some((shelter) => shelter.status === "functional" && !manualLocation?.suspectIds.has(shelter.id))
+                  ? null : <p>{appCopy.sections.shelter.noLocalFunctional}</p>}
                 <div className="nearest-list" aria-label={appCopy.sections.shelter.localListLabel}>
-                  {ranking.nearest.filter((result) => result.shelter.id !== ranking.primary?.shelter.id).map((result) => (
-                    <ShelterResult result={result} key={result.shelter.id}
-                      suspectCoordinate={manualLocation?.suspectIds.has(result.shelter.id)} />
+                  {manualShelters.map((shelter) => (
+                    <ShelterResult shelter={shelter} key={shelter.id}
+                      suspectCoordinate={manualLocation?.suspectIds.has(shelter.id)} />
                   ))}
                 </div>
-                {ranking.alternative === null ? null : (
-                  <section aria-label={appCopy.sections.shelter.alternativeLabel}>
-                    <h3>{appCopy.sections.shelter.alternativeLabel}</h3>
-                    <p className="quiet-note">{appCopy.sections.shelter.alternativeNote}</p>
-                    <ShelterResult result={ranking.alternative} />
-                  </section>
-                )}
+                <a className="secondary-action" href="#manual-location"
+                  onClick={() => document.getElementById("manual-county")?.focus()}>
+                  {appCopy.actions.searchOtherLocality}
+                </a>
               </>
             ) : ranking.primary === null ? (
               <p>{appCopy.sections.shelter.listPlaceholder}</p>
             ) : (
               <>
-                <ShelterResult result={ranking.primary} label={appCopy.sections.shelter.primaryLabel} />
+                <ShelterResult shelter={ranking.primary.shelter} distanceMeters={ranking.primary.distanceMeters} label={appCopy.sections.shelter.primaryLabel} />
                 <div className="nearest-list" aria-label={appCopy.sections.shelter.nearestLabel}>
                   {ranking.nearest
                     .filter((result) => result.shelter.id !== ranking.primary?.shelter.id)
                     .slice(0, 3)
                     .map((result) => (
-                      <ShelterResult result={result} key={result.shelter.id} />
+                      <ShelterResult shelter={result.shelter} distanceMeters={result.distanceMeters} key={result.shelter.id} />
                     ))}
                 </div>
               </>
@@ -357,8 +353,7 @@ export function App() {
   );
 }
 
-function ShelterResult({ result, label, suspectCoordinate = false }: { result: RankedShelter; label?: string; suspectCoordinate?: boolean }) {
-  const { shelter } = result;
+function ShelterResult({ shelter, distanceMeters, label, suspectCoordinate = false }: { shelter: Shelter; distanceMeters?: number; label?: string; suspectCoordinate?: boolean }) {
 
   return (
     <article className="shelter-result">
@@ -371,10 +366,10 @@ function ShelterResult({ result, label, suspectCoordinate = false }: { result: R
       </div>
       {suspectCoordinate ? <p className="quiet-note">{appCopy.sections.shelter.suspectCoordinate}</p> : null}
       <dl>
-        <div>
+        {distanceMeters === undefined ? null : <div>
           <dt>{appCopy.sections.shelter.fields.distance}</dt>
-          <dd>{suspectCoordinate ? appCopy.sections.shelter.distanceUncertain : formatDistance(result.distanceMeters)}</dd>
-        </div>
+          <dd>{formatDistance(distanceMeters)}</dd>
+        </div>}
         <div>
           <dt>{appCopy.sections.shelter.fields.town}</dt>
           <dd>

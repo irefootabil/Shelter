@@ -1,6 +1,5 @@
 import type { Shelter } from "../data";
 import { getDistanceMeters, isCoordinate, type Coordinate } from "./geo";
-import { rankShelters } from "./ranking";
 
 const COORDINATE_OUTLIER_METERS = 10_000;
 
@@ -18,21 +17,13 @@ export function estimateTownLocation(shelters: readonly Shelter[]) {
   return { coordinate, suspectIds };
 }
 
-export function rankManualShelters(
-  coordinate: Coordinate,
+export function listManualShelters(
   shelters: readonly Shelter[],
   county: string,
   town: string,
-  suspectIds: ReadonlySet<string>,
 ) {
   const local = shelters.filter((shelter) => shelter.county === county && shelter.town === town);
-  const reliable = local.filter((shelter) => !suspectIds.has(shelter.id));
-  const primary = rankShelters(coordinate, reliable.filter((shelter) => shelter.status === "functional"), { limit: 0 }).primary;
-  const nearest = rankShelters(coordinate, local).nearest;
-  const outside = shelters.filter((shelter) =>
-    (shelter.county !== county || shelter.town !== town) && shelter.status === "functional");
-  const alternative = rankShelters(coordinate, outside, { limit: 0 }).primary;
-  return { primary, nearest, alternative };
+  return local.sort((left, right) => left.address.localeCompare(right.address, "ro") || left.id.localeCompare(right.id));
 }
 
 function median(values: number[]): number {

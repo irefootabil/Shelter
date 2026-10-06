@@ -4,6 +4,7 @@ export const appCopy = {
   subtitle:
     "Interfata este gandita pentru telefon, lumina slaba si momente in care reteaua poate cadea.",
   actions: {
+    searchOtherLocality: "Cauta in alta localitate",
     stopLocation: "Opreste GPS",
     retryLocation: "Reincearca GPS",
     applyUpdate: "Actualizeaza si reincarca",
@@ -47,6 +48,7 @@ export const appCopy = {
   },
   sections: {
     location: {
+      manualBrowsing: "Lista locala, fara pozitia ta",
       modeLabel: "Sursa pozitiei",
       gpsMode: "GPS",
       manualMode: "Manual",
@@ -56,7 +58,7 @@ export const appCopy = {
       status: "GPS sau cautare manuala",
       description:
         "Activeaza GPS cand este sigur sa folosesti telefonul sau alege manual judetul si localitatea din datele salvate offline.",
-      fallback: "Alege o localitate pentru lista locala. Pozitia manuala este estimata din coordonatele adaposturilor, nu din pozitia ta exacta.",
+      fallback: "Alege o localitate pentru lista locala. Selectia nu stabileste pozitia ta.",
       sourceLabels: {
         gps: "GPS activ",
         cache: "Ultima pozitie salvata",
@@ -94,13 +96,11 @@ export const appCopy = {
     shelter: {
       manualTitle: "Adaposturi in localitatea aleasa",
       manualDescription: "Lista locala pastreaza starea fiecarui adapost din datele sursa. Un adapost partial sau nefunctional nu este confirmat ca utilizabil.",
-      manualDistanceNote: "Distante estimate in linie dreapta de la pozitia aproximativa a localitatii, nu de la tine si nu pe un traseu. Starea si accesul nu sunt verificate in timp real.",
+      manualStatus: "Inregistrari locale din sursa",
+      manualBrowsingNote: "Adrese ordonate alfabetic, fara distante sau directii de la tine. Starea si accesul nu sunt verificate in timp real; urmeaza instructiunile autoritatilor.",
       noLocalFunctional: "Niciun adapost local cu coordonate coerente nu este marcat functional in datele disponibile. Aceasta nu confirma lipsa unui adapost utilizabil; urmeaza informatiile autoritatilor.",
       localListLabel: "Adaposturi din localitatea aleasa",
-      alternativeLabel: "Alternativa functionala din alta localitate",
-      alternativeNote: "Inregistrare marcata functional in sursa, in afara localitatii alese. Nu este o recomandare de deplasare; verifica accesul si instructiunile autoritatilor.",
-      suspectCoordinate: "Coordonate posibil neconcordante cu celelalte adaposturi din localitate. Adresa este pastrata pentru verificare; distanta si directia nu sunt fiabile.",
-      distanceUncertain: "coordonate de verificat",
+      suspectCoordinate: "Coordonate posibil neconcordante cu celelalte adaposturi din localitate. Adresa din sursa este pastrata pentru verificare; coordonatele nu sunt confirmate.",
       title: "Adapost recomandat",
       status: "Recomandare calculata local",
       description:
@@ -133,7 +133,6 @@ export const appCopy = {
       title: "Directie catre adapost",
       status: "Busola telefonului",
       directionPrefix: "Mergi aproximativ spre",
-      manualDirectionPrefix: "Directie estimata de la pozitia localitatii:",
       headingPrefix: "Telefonul indica",
       headingUnavailable: "Busola telefonului nu este disponibila acum.",
       secondaryAid:

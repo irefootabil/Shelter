@@ -55,6 +55,7 @@ type CompassOrientationEvent = DeviceOrientationEvent & {
 
 const DEFAULT_SMOOTHING_ALPHA = 0.25;
 const DEFAULT_CALIBRATION_ACCURACY_THRESHOLD_DEGREES = 20;
+const READING_MAX_AGE_MS = 10_000;
 
 export function useCompass(options: UseCompassOptions = {}): UseCompassResult {
   const {
@@ -110,10 +111,12 @@ export function useCompass(options: UseCompassOptions = {}): UseCompassResult {
     const startedAt = now();
 
     function checkFreshness(): void {
-      if (now() - (lastReadingRef.current ?? startedAt) >= 10_000) {
+      if (now() - (lastReadingRef.current ?? startedAt) >= READING_MAX_AGE_MS) {
         previousHeadingRef.current = null;
+        lastReadingRef.current = null;
         setSnapshot(null);
         setStatus("unavailable");
+        setErrorMessage(null);
       }
     }
 
@@ -121,14 +124,13 @@ export function useCompass(options: UseCompassOptions = {}): UseCompassResult {
       const reading = getCompassReading(event as CompassOrientationEvent, calibrationAccuracyThresholdDegrees);
 
       if (reading === null) {
-        previousHeadingRef.current = null;
-        lastReadingRef.current = null;
-        setSnapshot(null);
-        setStatus("error");
-        setErrorMessage("Device orientation event did not include a usable heading.");
+        // Relative/empty events can interleave with valid absolute sensor events.
+        // They neither invalidate a fresh reading nor extend its lifetime.
+        checkFreshness();
         return;
       }
 
+      checkFreshness();
       const previousHeading = previousHeadingRef.current;
       const headingDegrees =
         previousHeading === null

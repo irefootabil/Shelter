@@ -145,16 +145,62 @@ describe("useCompass", () => {
 
     expect(removeEventListener).toHaveBeenCalledWith("deviceorientation", expect.any(Function));
   });
-  it("rejects relative alpha and invalidates the previous heading", () => {
+  it("ignores relative and invalid events without discarding a fresh absolute heading", () => {
     installDeviceOrientationEvent();
     const { result } = renderUseCompass();
     act(() => dispatchOrientation({ alpha: 90, absolute: true }));
     expect(result.current.headingDegrees).toBe(270);
     act(() => dispatchOrientation({ alpha: 90, absolute: false }));
-    expect(result.current.headingDegrees).toBeNull();
-    expect(result.current.status).toBe("error");
+    expect(result.current.headingDegrees).toBe(270);
+    expect(result.current.status).toBe("ready");
     act(() => dispatchOrientation({ webkitCompassHeading: 90, webkitCompassAccuracy: -1 }));
+    expect(result.current.headingDegrees).toBe(270);
+    expect(result.current.errorMessage).toBeNull();
+  });
+
+  it("stays ready when absolute and relative event streams alternate", () => {
+    installDeviceOrientationEvent();
+    const { result } = renderUseCompass({ smoothingAlpha: 1 });
+    for (const alpha of [90, 91, 92]) {
+      act(() => dispatchOrientation({ alpha, absolute: true }, "deviceorientationabsolute"));
+      expect(result.current.status).toBe("ready");
+      act(() => dispatchOrientation({ alpha, absolute: false }));
+      expect(result.current.status).toBe("ready");
+      expect(result.current.headingDegrees).toBe(360 - alpha);
+      act(() => dispatchOrientation({}));
+      expect(result.current.status).toBe("ready");
+    }
+  });
+
+  it("does not let repeated invalid samples keep an old heading alive and recovers unsmoothed", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    installDeviceOrientationEvent();
+    const { result } = renderHook(() => useCompass());
+    act(() => dispatchOrientation({ alpha: 90, absolute: true }));
+    for (let seconds = 1; seconds <= 10; seconds++) {
+      act(() => {
+        vi.advanceTimersByTime(1000);
+        dispatchOrientation({ alpha: 90, absolute: false });
+      });
+      expect(result.current.status).toBe(seconds < 10 ? "ready" : "unavailable");
+    }
     expect(result.current.headingDegrees).toBeNull();
+    act(() => dispatchOrientation({ alpha: 180, absolute: true }));
+    expect(result.current.status).toBe("ready");
+    expect(result.current.headingDegrees).toBe(180);
+  });
+
+  it("waits through invalid startup events and expires without a valid sample", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    installDeviceOrientationEvent();
+    const { result } = renderHook(() => useCompass());
+    act(() => dispatchOrientation({}));
+    expect(result.current.status).toBe("listening");
+    expect(result.current.headingDegrees).toBeNull();
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(result.current.status).toBe("unavailable");
   });
 
   it("expires stopped readings, handles sensors that never emit, and recovers", () => {
@@ -198,8 +244,8 @@ function dispatchOrientation(reading: {
   alpha?: number;
   webkitCompassHeading?: number;
   webkitCompassAccuracy?: number;
-}): void {
-  const event = new Event("deviceorientation");
+}, eventType = "deviceorientation"): void {
+  const event = new Event(eventType);
 
   Object.defineProperties(event, {
     absolute: { value: reading.absolute ?? false },

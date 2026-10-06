@@ -56,7 +56,7 @@ export const appCopy = {
       status: "GPS sau cautare manuala",
       description:
         "Activeaza GPS cand este sigur sa folosesti telefonul sau alege manual judetul si localitatea din datele salvate offline.",
-      fallback: "Recomandarea foloseste ultima pozitie valida sau centrul adaposturilor din localitatea aleasa manual.",
+      fallback: "Alege o localitate pentru lista locala. Pozitia manuala este estimata din coordonatele adaposturilor, nu din pozitia ta exacta.",
       sourceLabels: {
         gps: "GPS activ",
         cache: "Ultima pozitie salvata",
@@ -92,6 +92,15 @@ export const appCopy = {
         "Daca ai sters datele browserului sau ai instalat pe un telefon nou, incarca din nou aplicatia online inainte sa te bazezi pe modul offline.",
     },
     shelter: {
+      manualTitle: "Adaposturi in localitatea aleasa",
+      manualDescription: "Lista locala pastreaza starea fiecarui adapost din datele sursa. Un adapost partial sau nefunctional nu este confirmat ca utilizabil.",
+      manualDistanceNote: "Distante estimate in linie dreapta de la pozitia aproximativa a localitatii, nu de la tine si nu pe un traseu. Starea si accesul nu sunt verificate in timp real.",
+      noLocalFunctional: "Niciun adapost local cu coordonate coerente nu este marcat functional in datele disponibile. Aceasta nu confirma lipsa unui adapost utilizabil; urmeaza informatiile autoritatilor.",
+      localListLabel: "Adaposturi din localitatea aleasa",
+      alternativeLabel: "Alternativa functionala din alta localitate",
+      alternativeNote: "Inregistrare marcata functional in sursa, in afara localitatii alese. Nu este o recomandare de deplasare; verifica accesul si instructiunile autoritatilor.",
+      suspectCoordinate: "Coordonate posibil neconcordante cu celelalte adaposturi din localitate. Adresa este pastrata pentru verificare; distanta si directia nu sunt fiabile.",
+      distanceUncertain: "coordonate de verificat",
       title: "Adapost recomandat",
       status: "Recomandare calculata local",
       description:
@@ -124,6 +133,7 @@ export const appCopy = {
       title: "Directie catre adapost",
       status: "Busola telefonului",
       directionPrefix: "Mergi aproximativ spre",
+      manualDirectionPrefix: "Directie estimata de la pozitia localitatii:",
       headingPrefix: "Telefonul indica",
       headingUnavailable: "Busola telefonului nu este disponibila acum.",
       secondaryAid:

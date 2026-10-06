@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { appCopy, emergencyContent } from "./content";
@@ -130,7 +130,7 @@ describe("App", () => {
     expect(await screen.findByText(appCopy.sections.location.sourceLabels.manual)).toBeInTheDocument();
     expect(screen.getByText(`${appCopy.sections.location.manualSelection}: Bucuresti, Sector 1`)).toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.shelter.primaryLabel)).toBeInTheDocument();
-    expect(screen.getByLabelText(appCopy.sections.shelter.nearestLabel)).toBeInTheDocument();
+    expect(screen.getByLabelText(appCopy.sections.shelter.localListLabel)).toBeInTheDocument();
     expect(screen.queryByText(appCopy.sections.shelter.listPlaceholder)).not.toBeInTheDocument();
   });
 
@@ -144,7 +144,35 @@ describe("App", () => {
     expect(screen.getByText(appCopy.sections.shelter.primaryLabel)).toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.compass.statusLabels.unavailable)).toBeInTheDocument();
     expect(screen.getByText(appCopy.sections.compass.headingUnavailable)).toBeInTheDocument();
-    expect(screen.getAllByText(appCopy.sections.compass.directionPrefix, { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(appCopy.sections.compass.manualDirectionPrefix, { exact: false }).length).toBeGreaterThan(0);
+  });
+
+  it("separates Turnu Magurele local records from the distant functional alternative", async () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "TR" } });
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Turnu Măgurele" } });
+    expect(await screen.findByText(appCopy.sections.shelter.noLocalFunctional)).toBeInTheDocument();
+    const local = screen.getByLabelText(appCopy.sections.shelter.localListLabel);
+    expect(within(local).getAllByText("partial").length).toBeGreaterThan(0);
+    expect(within(local).queryByText(/Camera de Comerț/)).not.toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: appCopy.sections.shelter.alternativeLabel }))
+      .getByText(/Camera de Comerț/)).toBeInTheDocument();
+    expect(screen.getByText(appCopy.sections.shelter.manualDistanceNote)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: appCopy.sections.compass.title })).not.toBeInTheDocument();
+    expect(screen.queryByText(appCopy.sections.shelter.primaryLabel)).not.toBeInTheDocument();
+  });
+
+  it("keeps the suspect Huedin record visible but removes its misleading distance", async () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "CJ" } });
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Huedin" } });
+    const address = await screen.findByRole("heading", { name: "Str. Republicii nr. 39-42" });
+    const record = within(address.closest("article")!);
+    expect(record.getByText(appCopy.sections.shelter.suspectCoordinate)).toBeInTheDocument();
+    expect(record.getByText(appCopy.sections.shelter.distanceUncertain)).toBeInTheDocument();
+    expect(record.queryByText(/km/)).not.toBeInTheDocument();
+    expect(screen.getByText(appCopy.sections.shelter.noLocalFunctional)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: appCopy.sections.compass.title })).not.toBeInTheDocument();
   });
 
   it("lets users retry and stop GPS, then honors manual selection", async () => {

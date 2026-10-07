@@ -64,6 +64,26 @@ describe("offline readiness", () => {
     expect(waiting.postMessage).toHaveBeenCalledWith({ type: "APPLY_UPDATE" });
   });
 
+  it("requests repair for an incomplete active cache online", async () => {
+    const active = worker(false);
+    vi.mocked(active.postMessage).mockImplementation((message, ports: any) => ports?.[0].reply({ ready: message.type === "PREPARE_OFFLINE" }));
+    install(active);
+    const { result } = renderHook(useOfflineStatus);
+    act(() => registerServiceWorker());
+    await waitFor(() => expect(result.current).toBe("ready"));
+    expect(active.postMessage).toHaveBeenCalledWith({ type: "PREPARE_OFFLINE" }, expect.any(Array));
+  });
+
+  it("does not attempt cache repair while the browser reports offline", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const active = worker(false);
+    install(active);
+    const { result } = renderHook(useOfflineStatus);
+    act(() => registerServiceWorker());
+    await waitFor(() => expect(result.current).toBe("failed"));
+    expect(active.postMessage).not.toHaveBeenCalledWith({ type: "PREPARE_OFFLINE" }, expect.any(Array));
+  });
+
   it("keeps the old release ready when the waiting release is incomplete", async () => {
     install(worker(true), worker(false));
     const { result } = renderHook(useOfflineStatus);

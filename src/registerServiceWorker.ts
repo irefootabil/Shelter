@@ -33,6 +33,10 @@ export function applyOfflineUpdate(): void {
 }
 
 export async function checkWorkerReady(worker: ServiceWorker): Promise<boolean> {
+  return requestWorkerReady(worker, "OFFLINE_STATUS", 5000);
+}
+
+async function requestWorkerReady(worker: ServiceWorker, type: string, timeout: number): Promise<boolean> {
   return new Promise((resolve) => {
     const channel = new MessageChannel();
     const finish = (ready: boolean) => {
@@ -40,10 +44,10 @@ export async function checkWorkerReady(worker: ServiceWorker): Promise<boolean> 
       channel.port1.close();
       resolve(ready);
     };
-    const timer = window.setTimeout(() => finish(false), 5000);
+    const timer = window.setTimeout(() => finish(false), timeout);
     channel.port1.onmessage = (event) => finish(event.data?.ready === true);
     try {
-      worker.postMessage({ type: "OFFLINE_STATUS" }, [channel.port2]);
+      worker.postMessage({ type }, [channel.port2]);
     } catch {
       finish(false);
     }
@@ -77,7 +81,11 @@ export function registerServiceWorker(): void {
           return;
         }
         const worker = current.active;
-        const ready = worker !== null && await checkWorkerReady(worker);
+        let ready = worker !== null && await checkWorkerReady(worker);
+        if (!ready && worker && navigator.onLine) {
+          if (sequence === refreshSequence) setStatus("preparing");
+          ready = await requestWorkerReady(worker, "PREPARE_OFFLINE", 30000);
+        }
         if (sequence === refreshSequence) setStatus(ready ? "ready" : "failed");
       }
       function watchInstalling(): void {

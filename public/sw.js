@@ -1,10 +1,12 @@
 const CACHE_VERSION = "__BUILD_ID__";
+const RELEASE_FILES = __RELEASE_FILES__;
 const APP_BASE_URL = new URL(self.registration.scope).pathname;
 const CACHE_PREFIX = `adapost-urgenta-romania-${encodeURIComponent(APP_BASE_URL)}-`;
 const APP_SHELL_CACHE = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const APP_SHELL_URL = `${APP_BASE_URL}index.html`;
 const APP_ASSETS_URL = `${APP_BASE_URL}assets/`;
 const CORE_ASSETS = [APP_SHELL_URL, `${APP_BASE_URL}manifest.webmanifest`, `${APP_BASE_URL}icons/app-icon.svg`];
+let repairPromise = null;
 
 self.addEventListener("install", (event) => event.waitUntil(precacheAppShell()));
 self.addEventListener("activate", (event) => {
@@ -18,6 +20,12 @@ self.addEventListener("message", (event) => {
     event.waitUntil(isOfflineReady().then((ready) => {
       event.ports[0]?.postMessage({ ready, version: CACHE_VERSION });
     }).catch(() => event.ports[0]?.postMessage({ ready: false })));
+  }
+  if (event.data?.type === "PREPARE_OFFLINE") {
+    repairPromise ??= repairReleaseCache().finally(() => { repairPromise = null; });
+    event.waitUntil(repairPromise.then((ready) => {
+      event.ports[0]?.postMessage({ ready, version: CACHE_VERSION });
+    }));
   }
 });
 self.addEventListener("fetch", (event) => {
@@ -71,6 +79,39 @@ async function isOfflineReady() {
   if (assets.length === 0) return false;
   const entries = await Promise.all([...CORE_ASSETS, ...assets].map((url) => cache.match(url)));
   return entries.every((entry) => entry?.ok);
+}
+
+async function downloadReleaseFile(url) {
+  const response = await fetch(url, { cache: "reload" });
+  if (!response.ok) throw new Error("Required file could not be downloaded.");
+  const digest = await crypto.subtle.digest("SHA-256", await response.clone().arrayBuffer());
+  const actual = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const relative = url.slice(APP_BASE_URL.length);
+  if (!RELEASE_FILES[relative] || actual !== RELEASE_FILES[relative]) {
+    throw new Error("Downloaded file belongs to a different release.");
+  }
+  return response;
+}
+
+async function repairReleaseCache() {
+  try {
+    const cache = await caches.open(APP_SHELL_CACHE);
+    let shell = await cache.match(APP_SHELL_URL);
+    const missingShell = !shell?.ok;
+    if (missingShell) shell = await downloadReleaseFile(APP_SHELL_URL);
+    const assets = getBuildAssetUrls(await shell.clone().text());
+    if (assets.length === 0) return false;
+    const downloads = await Promise.all([...CORE_ASSETS.filter((url) => url !== APP_SHELL_URL), ...assets].map(async (url) => {
+      const cached = await cache.match(url);
+      return cached?.ok ? null : [url, await downloadReleaseFile(url)];
+    }));
+    // Never remove retained files on failed repair or mix an unapproved release in.
+    for (const entry of downloads) if (entry) await cache.put(entry[0], entry[1]);
+    if (missingShell) await cache.put(APP_SHELL_URL, shell);
+    return await isOfflineReady();
+  } catch {
+    return false;
+  }
 }
 
 async function deleteOldCaches() {

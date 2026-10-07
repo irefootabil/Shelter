@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createContext, runInContext } from "node:vm";
+import { createHash, webcrypto } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 const source = readFileSync(resolve("public/sw.js"), "utf8");
@@ -12,6 +13,8 @@ type CacheStore = Map<string, Map<string, CacheEntry>>;
 function worker(version: string, stores: CacheStore = new Map(), base = "/Shelter/") {
   const handlers: Record<string, (event: any) => void> = {};
   const html = `<script src="${base}assets/app-${version}.js"></script><link href="${base}assets/app-${version}.css">`;
+  const releaseFiles = Object.fromEntries(["index.html", "manifest.webmanifest", "icons/app-icon.svg", `assets/app-${version}.js`, `assets/app-${version}.css`]
+    .map((name) => [name, createHash("sha256").update(name === "index.html" ? html : "asset-" + version).digest("hex")]));
   const network = vi.fn(async (input: string | Request) => {
     const path = typeof input === "string" ? input : new URL(input.url).pathname;
     return new Response(path === base + "index.html" ? html : "asset-" + version);
@@ -48,14 +51,14 @@ function worker(version: string, stores: CacheStore = new Map(), base = "/Shelte
   const skipWaiting = vi.fn();
   const claim = vi.fn();
   const context = createContext({
-    URL, Response, Set, Promise, fetch: network, caches,
+    URL, Response, Set, Promise, crypto: webcrypto, Uint8Array, fetch: network, caches,
     self: {
       registration: { scope: origin + base }, location: { origin },
       clients: { claim }, skipWaiting,
       addEventListener: (name: string, handler: (event: any) => void) => { handlers[name] = handler; },
     },
   });
-  runInContext(source.replace("__BUILD_ID__", version), context);
+  runInContext(source.replace("__BUILD_ID__", version).replace("__RELEASE_FILES__", JSON.stringify(releaseFiles)), context);
   const cacheName = `adapost-urgenta-romania-${encodeURIComponent(base)}-${version}`;
   async function event(name: string, data: Record<string, unknown> = {}) {
     let work: Promise<unknown> | undefined;
@@ -77,6 +80,46 @@ function worker(version: string, stores: CacheStore = new Map(), base = "/Shelte
 }
 
 describe("service worker release cache behavior", () => {
+  it.each(["/", "/Shelter/"])("repairs partial and complete cache loss without activating an update at %s", async (base) => {
+    const w = worker("one", undefined, base);
+    await w.event("install");
+    const entries = w.stores.get(w.cacheName)!;
+    entries.delete(origin + base + "manifest.webmanifest");
+    expect(await w.ready()).toBe(false);
+    await w.event("message", { data: { type: "PREPARE_OFFLINE" }, ports: [{ postMessage: vi.fn() }] });
+    expect(await w.ready()).toBe(true);
+    w.stores.delete(w.cacheName);
+    await w.event("message", { data: { type: "PREPARE_OFFLINE" }, ports: [{ postMessage: vi.fn() }] });
+    expect(await w.ready()).toBe(true);
+    expect(w.skipWaiting).not.toHaveBeenCalled();
+    w.network.mockRejectedValue(new Error("offline"));
+    expect(await (await w.event("fetch", { request: { url: origin + base, method: "GET", mode: "navigate" } }))?.text()).toContain("app-one.js");
+  });
+
+  it.each(["offline", "wrong release", "http error"])("preserves retained files when cache repair fails: %s", async (failure) => {
+    const w = worker("one");
+    await w.event("install");
+    const entries = w.stores.get(w.cacheName)!;
+    entries.delete(origin + "/Shelter/manifest.webmanifest");
+    if (failure === "offline") w.network.mockRejectedValue(new Error("offline"));
+    else w.network.mockResolvedValue(new Response("wrong release", { status: failure === "http error" ? 503 : 200 }));
+    const postMessage = vi.fn();
+    await w.event("message", { data: { type: "PREPARE_OFFLINE" }, ports: [{ postMessage }] });
+    expect(postMessage).toHaveBeenCalledWith({ ready: false, version: "one" });
+    expect(entries.has(origin + "/Shelter/index.html")).toBe(true);
+    expect(entries.has(origin + "/Shelter/assets/app-one.js")).toBe(true);
+    expect(entries.has(origin + "/Shelter/manifest.webmanifest")).toBe(false);
+    expect(w.caches.delete).not.toHaveBeenCalled();
+  });
+
+  it("rejects a newer shell during full cache-loss recovery", async () => {
+    const w = worker("one");
+    w.network.mockResolvedValue(new Response('<script src="/Shelter/assets/app-two.js"></script>'));
+    await w.event("message", { data: { type: "PREPARE_OFFLINE" }, ports: [{ postMessage: vi.fn() }] });
+    expect(await w.ready()).toBe(false);
+    expect(w.stores.get(w.cacheName)?.size).toBe(0);
+  });
+
   it.each(["/", "/Shelter/"])("preserves offline release A through interrupted B preparation and retry at %s", async (base) => {
     const old = worker("old", undefined, base);
     await old.event("install");

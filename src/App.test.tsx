@@ -4,8 +4,60 @@ import { App } from "./App";
 import { appCopy, emergencyContent } from "./content";
 import * as locationModule from "./hooks/useLocation";
 import * as rankingModule from "./lib/ranking";
+import * as offlineModule from "./registerServiceWorker";
 
 describe("App", () => {
+  it("puts labeled search controls first, with truthful readiness linked to preparation", () => {
+    const { container } = render(<App />);
+    const main = screen.getByRole("main");
+    expect(main.firstElementChild).toBe(screen.getByRole("region", { name: appCopy.title }));
+    const sections = [...main.children].map((element) => element.id);
+    expect(sections).toEqual(["search", "nearby", "emergency", "install", "status", "source"]);
+    expect(container.querySelector(".hero")).toBeNull();
+    expect(container.querySelector(".shelter-results")?.closest(".panel")).toBeNull();
+    expect(screen.getByRole("radio", { name: appCopy.sections.location.manualMode })).toBeChecked();
+    expect(screen.getByLabelText(appCopy.actions.chooseCounty)).toBeEnabled();
+    expect(screen.getByLabelText(appCopy.actions.chooseTown)).toBeDisabled();
+    expect(screen.getByRole("link", { name: appCopy.status.offlineLabels.unavailable })).toHaveAttribute("href", "#install");
+    const nav = within(screen.getByRole("navigation"));
+    expect(nav.getAllByRole("link").map((link) => link.textContent)).toEqual([
+      appCopy.navigation.search, appCopy.navigation.install, appCopy.navigation.status, appCopy.navigation.emergency,
+    ]);
+    expect(nav.getByRole("link", { name: appCopy.navigation.search })).toHaveAttribute("aria-current", "location");
+  });
+
+  it("keeps a prepared update explicit and reachable below the search", () => {
+    vi.spyOn(offlineModule, "useOfflineStatus").mockReturnValue("update-available");
+    const apply = vi.spyOn(offlineModule, "applyOfflineUpdate").mockImplementation(() => {});
+    render(<App />);
+    expect(screen.getByRole("link", { name: appCopy.status.offlineLabels["update-available"] })).toHaveAttribute("href", "#install");
+    expect(apply).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: appCopy.actions.applyUpdate }));
+    expect(apply).toHaveBeenCalledOnce();
+  });
+
+  it("keeps manual search usable after GPS denial without requesting permission on load", async () => {
+    const original = Object.getOwnPropertyDescriptor(navigator, "geolocation");
+    const watchPosition = vi.fn((_success, failure) => {
+      failure({ code: 1, message: "denied" });
+      return 7;
+    });
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: { watchPosition, clearWatch: vi.fn() } });
+    try {
+      render(<App />);
+      expect(watchPosition).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: appCopy.actions.enableLocation }));
+      expect(await screen.findByText(appCopy.sections.location.permissionLabels.denied)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: appCopy.actions.manualSearch })).toHaveAttribute("href", "#manual-location");
+      fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "CJ" } });
+      fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Huedin" } });
+      expect(screen.getByLabelText(appCopy.sections.shelter.localListLabel).querySelectorAll("article")).toHaveLength(4);
+      expect(watchPosition).toHaveBeenCalledOnce();
+    } finally {
+      if (original) Object.defineProperty(navigator, "geolocation", original);
+      else Reflect.deleteProperty(navigator, "geolocation");
+    }
+  });
   it("keeps manual results and offline preparation when changing location privacy", async () => {
     render(<App />);
     fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "CJ" } });
@@ -124,7 +176,7 @@ describe("App", () => {
 
     expect(screen.getByRole("link", { name: appCopy.actions.call112 })).toHaveAttribute("href", "tel:112");
     expect(screen.getByRole("button", { name: appCopy.actions.enableLocation })).toBeEnabled();
-    expect(screen.getByRole("link", { name: appCopy.actions.manualSearch })).toHaveAttribute("href", "#manual-location");
+    expect(screen.getByLabelText(appCopy.actions.chooseCounty)).toBeEnabled();
     expect(screen.getByText(emergencyContent.numbers[0].action)).toBeInTheDocument();
   });
 

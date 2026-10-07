@@ -1,6 +1,6 @@
 export const appCopy = {
   productLabel: "Adapost Urgenta Romania",
-  title: "Gaseste rapid un adapost apropiat",
+  title: "Cauta adapost",
   subtitle:
     "Interfata este gandita pentru telefon, lumina slaba si momente in care reteaua poate cadea.",
   actions: {
@@ -49,7 +49,7 @@ export const appCopy = {
   sections: {
     location: {
       manualBrowsing: "Lista locala, fara pozitia ta",
-      modeLabel: "Sursa pozitiei",
+      modeLabel: "Mod de cautare",
       gpsMode: "GPS",
       manualMode: "Manual",
       age: "Vechimea pozitiei",
@@ -190,6 +190,7 @@ export const appCopy = {
     },
   },
   navigation: {
+    search: "Cauta",
     primaryLabel: "Navigare principala",
     status: "Stare",
     install: "Offline",

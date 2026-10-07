@@ -118,7 +118,7 @@ p {
 .brand-lockup {
   display: inline-flex;
   align-items: center;
-  min-height: 2.75rem;
+  min-height: 44px;
   min-width: 0;
   flex: 1 1 12rem;
   gap: 0.6rem;
@@ -169,28 +169,18 @@ p {
 .app-shell {
   width: min(100%, 52rem);
   margin: 0 auto;
-  padding: 2rem max(1rem, env(safe-area-inset-right)) calc(var(--bottom-nav-height, 4rem) + max(0.75rem, env(safe-area-inset-bottom)) + 2rem)
+  padding: 1rem max(1rem, env(safe-area-inset-right)) calc(var(--bottom-nav-height, 4rem) + max(0.75rem, env(safe-area-inset-bottom)) + 2rem)
     max(1rem, env(safe-area-inset-left));
 }
 
-.hero {
-  display: grid;
-  gap: 1rem;
-  min-height: 24rem;
-  align-content: center;
-  padding: 1rem 0 2.25rem;
-}
-
-.eyebrow,
 .card-kicker {
   margin-bottom: 0;
 }
 
 h1 {
-  max-width: min(100%, 16ch);
   margin-bottom: 0;
-  font-size: 2.5rem;
-  line-height: 1.1;
+  font-size: 1.5rem;
+  line-height: 1.25;
   letter-spacing: 0;
 }
 
@@ -221,7 +211,6 @@ h4 {
   line-height: 1.6;
 }
 
-.hero-actions,
 .control-row {
   display: flex;
   flex-wrap: wrap;
@@ -234,6 +223,7 @@ h4 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   min-height: 2.75rem;
   min-width: min(8.75rem, 100%);
   max-width: 100%;
@@ -363,11 +353,11 @@ button.secondary-action:disabled {
 }
 
 .location-modes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem;
   margin: 0;
-  padding: 0.75rem;
+  padding: 0.25rem;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
 }
@@ -376,9 +366,18 @@ button.secondary-action:disabled {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
   min-height: 2.75rem;
-  padding: 0 0.75rem;
+  padding: 0.25rem;
+  overflow-wrap: normal;
   cursor: pointer;
+  border-radius: 6px;
+}
+
+.location-modes .selected-mode {
+  background: #05251f;
+  color: #8dffda;
 }
 
 .location-modes input { accent-color: #b8f7d4; }
@@ -767,7 +766,7 @@ button.secondary-action:disabled {
   left: max(0.75rem, env(safe-area-inset-left));
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.5rem), 1fr));
   gap: 0.25rem;
   max-width: 28rem;
   margin: 0 auto;
@@ -780,18 +779,74 @@ button.secondary-action:disabled {
 
 .bottom-nav a {
   display: grid;
-  min-height: 2.75rem;
+  min-height: 44px;
   min-width: 0;
   padding: 0.5rem 0.25rem;
   text-align: center;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   place-items: center;
   border-radius: 6px;
   color: #d9e5ec;
   font-size: 0.86rem;
   font-weight: 800;
   text-decoration: none;
+  gap: 0.25rem;
 }
+
+.bottom-nav a[aria-current="location"] {
+  background: #05251f;
+  color: #8dffda;
+  box-shadow: inset 0 -2px #8dffda;
+}
+
+.readiness-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  max-width: 100%;
+  text-decoration: none;
+}
+
+.location-panel,
+.shelter-panel,
+.install-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.shelter-panel,
+.install-panel,
+.status-grid,
+.source-panel {
+  margin-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  padding-top: 1.5rem;
+}
+
+.source-panel {
+  border-radius: 0;
+  border-inline: 0;
+  border-bottom: 0;
+  background: none;
+  padding-inline: 0;
+}
+
+.location-panel p,
+.shelter-panel p,
+.install-panel p {
+  margin-bottom: 0;
+  color: #d4dde5;
+  line-height: 1.5;
+}
+
+.location-panel h2,
+.shelter-panel h2 {
+  margin-bottom: 0;
+}
+
+.primary-action svg,
+.secondary-action svg,
+.bottom-nav svg { flex: 0 0 auto; }
 
 .bottom-nav a:focus-visible,
 .primary-action:focus-visible,
@@ -805,27 +860,39 @@ button.secondary-action:disabled {
 }
 
 @media (max-width: 22rem) {
+  .brand-lockup {
+    font-size: 0.75rem;
+    gap: 0.4rem;
+  }
+  .brand-mark {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  .network-pill {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.35rem;
+  }
+  h1 { font-size: 1.125rem; }
   .bottom-nav {
     right: max(0.5rem, env(safe-area-inset-right));
     left: max(0.5rem, env(safe-area-inset-left));
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .bottom-nav a {
-    padding-inline: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0;
   }
+  .location-modes label { flex-wrap: wrap; padding-inline: 0.25rem; }
 }
 
 @media (min-width: 42rem) {
-  h1 {
-    font-size: 3.5rem;
-  }
   .app-shell {
     padding-inline: 1.5rem;
   }
 
-  .hero {
-    min-height: 28rem;
-  }
 
   .status-cards,
   .number-grid,
@@ -843,7 +910,6 @@ button.secondary-action:disabled {
   }
 
   .panel,
-  .source-panel,
   .status-card,
   .number-card,
   .instruction-card,
@@ -859,7 +925,7 @@ button.secondary-action:disabled {
   }
 }
 .location-privacy {
-  margin-top: 1rem;
+  margin-top: 0;
   border-top: 1px solid #ffffff2e;
   padding-top: .75rem;
 }

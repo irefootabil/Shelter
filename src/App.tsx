@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Download, Info, LocateFixed, Search, ShieldAlert, Trash2 } from "lucide-react";
 import { appCopy } from "./content";
 import { EmergencyGuide } from "./components/EmergencyGuide";
 import { useNavigationInsets } from "./hooks/useNavigationInsets";
+import { useSectionNavigation } from "./hooks/useSectionNavigation";
 import { shelterCountyGroups, shelters, shelterDataSource, type Shelter, type ShelterStatus } from "./data";
 import { useCompass, type CompassCalibrationState, type CompassStatus } from "./hooks/useCompass";
 import { useLocation, type LocationSnapshot, type LocationStatus } from "./hooks/useLocation";
@@ -31,8 +32,18 @@ type ManualSelection = {
   town: string;
 };
 
+const navigationSections = [
+  { id: "search", destination: "search" },
+  { id: "nearby", destination: "search" },
+  { id: "emergency", destination: "emergency" },
+  { id: "install", destination: "install" },
+  { id: "status", destination: "status" },
+  { id: "source", destination: "status" },
+] as const;
+
 export function App() {
   const { headerRef, navigationRef } = useNavigationInsets();
+  const activeSection = useSectionNavigation(navigationSections, headerRef);
   const offlineStatus = useOfflineStatus();
   const networkOnline = useNetworkOnline();
   const [locationMode, setLocationMode] = useState<"gps" | "manual">("manual");
@@ -109,87 +120,17 @@ export function App() {
           </span>
           <span>{appCopy.productLabel}</span>
         </a>
-        <span className="network-pill" role="status">{appCopy.status.offlineLabels[offlineStatus]}</span>
+        <a className="readiness-link" href="#install" aria-label={appCopy.status.offlineLabels[offlineStatus]}><span className="network-pill" role="status">{appCopy.status.offlineLabels[offlineStatus]}</span></a>
       </header>
 
       <main id="top" className="app-shell" tabIndex={-1}>
-        <section className="hero" aria-labelledby="app-title">
-          <p className="eyebrow">{appCopy.productLabel}</p>
+        <section id="search" className="location-panel" aria-labelledby="app-title">
           <h1 id="app-title">{appCopy.title}</h1>
-          <p className="lead">{appCopy.subtitle}</p>
-          <div className="hero-actions" aria-label={appCopy.accessibility.primaryActions}>
-            <a className="primary-action" href="#nearby">
-              {appCopy.actions.findShelter}
-            </a>
-            <a className="secondary-action" href="#emergency">
-              {appCopy.actions.emergencyGuide}
-            </a>
-          </div>
-        </section>
-
-        <section id="status" className="status-grid" aria-labelledby="status-title">
-          <h2 id="status-title">{appCopy.status.title}</h2>
-          <div className="status-cards">
-            {statusItems.map((item) => (
-              <article className="status-card" key={item.label}>
-                <p className="card-kicker">{item.label}</p>
-                <p>{item === statusItems[0] ? appCopy.status.offlineDetails[offlineStatus] : item.text}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section id="install" className="panel install-panel" aria-labelledby="install-title">
-          <div>
-            <p className="card-kicker">{appCopy.sections.install.status}</p>
-            <h2 id="install-title">{appCopy.sections.install.title}</h2>
-            <p role="status">{appCopy.status.offlineDetails[offlineStatus]}</p>
-            <p>{networkOnline ? appCopy.status.connectionOnline : appCopy.status.connectionOffline}</p>
-            <p>{appCopy.sections.install.description}</p>
-          </div>
-          <ol className="install-checklist">
-            {appCopy.sections.install.steps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-          <p className="quiet-note">{appCopy.sections.install.caveat}</p>
-          {offlineStatus === "update-available" ? (
-            <button type="button" className="primary-action" onClick={applyOfflineUpdate}>{appCopy.actions.applyUpdate}</button>
-          ) : null}
-        </section>
-
-        <section className="panel location-panel" aria-labelledby="location-title">
-          <div>
-            <p className="card-kicker">{appCopy.sections.location.status}</p>
-            <h2 id="location-title">{appCopy.sections.location.title}</h2>
-            <p>{appCopy.sections.location.description}</p>
-          </div>
           <fieldset className="location-modes">
             <legend>{appCopy.sections.location.modeLabel}</legend>
-            <label><input type="radio" name="location-mode" checked={locationMode === "gps"} onChange={startGps} />{appCopy.sections.location.gpsMode}</label>
-            <label><input type="radio" name="location-mode" checked={locationMode === "manual"} onChange={() => { setLocationMode("manual"); setGpsEnabled(false); }} />{appCopy.sections.location.manualMode}</label>
+            <label className={locationMode === "manual" ? "selected-mode" : undefined}><input type="radio" name="location-mode" checked={locationMode === "manual"} onChange={() => { setLocationMode("manual"); setGpsEnabled(false); }} />{appCopy.sections.location.manualMode}</label>
+            <label className={locationMode === "gps" ? "selected-mode" : undefined}><input type="radio" name="location-mode" checked={locationMode === "gps"} onChange={startGps} />{appCopy.sections.location.gpsMode}</label>
           </fieldset>
-          <div className="control-row">
-            <button type="button" className="primary-action" onClick={startGps}>
-              {gpsEnabled ? appCopy.actions.retryLocation : appCopy.actions.enableLocation}
-            </button>
-            {gpsEnabled ? <button type="button" className="secondary-action" onClick={() => { setGpsEnabled(false); setLocationMode("manual"); }}>{appCopy.actions.stopLocation}</button> : null}
-            <a className="secondary-action" href="#manual-location">
-              {appCopy.actions.manualSearch}
-            </a>
-          </div>
-          <div className="location-summary">
-            <p role="status" aria-atomic="true">
-              <strong>{sourceLabel}</strong>
-              <span>{statusLabel}</span>
-            </p>
-            {locationMode === "manual" || location.positionAgeSeconds === null ? null : <p>{appCopy.sections.location.age}: {location.positionAgeSeconds} {appCopy.sections.location.seconds}</p>}
-            {locationMode === "manual" ? null : <p>
-              {location.effectiveLocation?.accuracyMeters === null || location.effectiveLocation === null
-                ? appCopy.sections.location.noAccuracy
-                : `${appCopy.sections.location.accuracy}: ${formatDistance(location.effectiveLocation.accuracyMeters)}`}
-            </p>}
-          </div>
           <div id="manual-location" className="manual-grid">
             <label>
               <span>{appCopy.actions.chooseCounty}</span>
@@ -218,6 +159,26 @@ export function App() {
               </select>
             </label>
           </div>
+          <div className="control-row">
+            <button type="button" className="primary-action" onClick={startGps}>
+              <LocateFixed size={18} aria-hidden="true" />
+              {gpsEnabled ? appCopy.actions.retryLocation : appCopy.actions.enableLocation}
+            </button>
+            {gpsEnabled ? <button type="button" className="secondary-action" onClick={() => { setGpsEnabled(false); setLocationMode("manual"); }}>{appCopy.actions.stopLocation}</button> : null}
+            {locationMode === "gps" ? <a className="secondary-action" href="#manual-location">{appCopy.actions.manualSearch}</a> : null}
+          </div>
+          <div className="location-summary">
+            <p role="status" aria-atomic="true">
+              <strong>{sourceLabel}</strong>
+              <span>{statusLabel}</span>
+            </p>
+            {locationMode === "manual" || location.positionAgeSeconds === null ? null : <p>{appCopy.sections.location.age}: {location.positionAgeSeconds} {appCopy.sections.location.seconds}</p>}
+            {locationMode === "manual" ? null : <p>
+              {location.effectiveLocation?.accuracyMeters === null || location.effectiveLocation === null
+                ? appCopy.sections.location.noAccuracy
+                : `${appCopy.sections.location.accuracy}: ${formatDistance(location.effectiveLocation.accuracyMeters)}`}
+            </p>}
+          </div>
           {manualSelection.town !== "" ? (
             <p className="quiet-note">
               {appCopy.sections.location.manualSelection}: {selectedCounty?.name}, {manualSelection.town}
@@ -243,7 +204,7 @@ export function App() {
           </details>
         </section>
 
-        <section id="nearby" className="panel shelter-panel" aria-labelledby="shelter-title">
+        <section id="nearby" className="shelter-panel" aria-labelledby="shelter-title">
           <div className="section-heading">
             <div>
               <p className="card-kicker">{isManualSearch ? appCopy.sections.shelter.manualStatus : appCopy.sections.shelter.status}</p>
@@ -299,7 +260,7 @@ export function App() {
           <p className="visually-hidden" role="status" aria-atomic="true">
             {ranking.primary === null ? "" : `${appCopy.sections.shelter.primaryLabel}: ${ranking.primary.shelter.address}`}
           </p>
-          <div className="result-placeholder shelter-results">
+          <div className="shelter-results">
             <h3>{isManualSearch ? appCopy.sections.shelter.localListLabel : appCopy.sections.shelter.listTitle}</h3>
             {isManualSearch ? (
               <>
@@ -340,7 +301,36 @@ export function App() {
 
         <EmergencyGuide />
 
-        <section className="source-panel" aria-labelledby="source-title">
+        <section id="install" className="install-panel" aria-labelledby="install-title">
+          <div>
+            <p className="card-kicker">{appCopy.sections.install.status}</p>
+            <h2 id="install-title">{appCopy.sections.install.title}</h2>
+            <p role="status">{appCopy.status.offlineDetails[offlineStatus]}</p>
+            <p>{networkOnline ? appCopy.status.connectionOnline : appCopy.status.connectionOffline}</p>
+            <p>{appCopy.sections.install.description}</p>
+          </div>
+          <ol className="install-checklist">
+            {appCopy.sections.install.steps.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+          <p className="quiet-note">{appCopy.sections.install.caveat}</p>
+          {offlineStatus === "update-available" ? (
+            <button type="button" className="primary-action" onClick={applyOfflineUpdate}><Download size={18} aria-hidden="true" />{appCopy.actions.applyUpdate}</button>
+          ) : null}
+        </section>
+
+        <section id="status" className="status-grid" aria-labelledby="status-title">
+          <h2 id="status-title">{appCopy.status.title}</h2>
+          <div className="status-cards">
+            {statusItems.map((item) => (
+              <article className="status-card" key={item.label}>
+                <p className="card-kicker">{item.label}</p>
+                <p>{item === statusItems[0] ? appCopy.status.offlineDetails[offlineStatus] : item.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="source" className="source-panel" aria-labelledby="source-title">
           <h2 id="source-title">{appCopy.sections.source.title}</h2>
           <dl>
             <div>
@@ -365,10 +355,10 @@ export function App() {
       </main>
 
       <nav className="bottom-nav" ref={navigationRef} aria-label={appCopy.navigation.primaryLabel}>
-        <a href="#status">{appCopy.navigation.status}</a>
-        <a href="#install">{appCopy.navigation.install}</a>
-        <a href="#nearby">{appCopy.navigation.shelter}</a>
-        <a href="#emergency">{appCopy.navigation.emergency}</a>
+        <a href="#search" aria-current={activeSection === "search" ? "location" : undefined}><Search size={18} aria-hidden="true" />{appCopy.navigation.search}</a>
+        <a href="#install" aria-current={activeSection === "install" ? "location" : undefined}><Download size={18} aria-hidden="true" />{appCopy.navigation.install}</a>
+        <a href="#status" aria-current={activeSection === "status" ? "location" : undefined}><Info size={18} aria-hidden="true" />{appCopy.navigation.status}</a>
+        <a href="#emergency" aria-current={activeSection === "emergency" ? "location" : undefined}><ShieldAlert size={18} aria-hidden="true" />{appCopy.navigation.emergency}</a>
       </nav>
     </div>
   );

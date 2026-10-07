@@ -119,9 +119,11 @@ export function App() {
           <section id="search" className="location-panel" aria-labelledby="app-title">
             <h1 id="app-title">{appCopy.title}</h1>
             <fieldset className="location-modes">
-              <legend>{appCopy.sections.location.modeLabel}</legend>
-              <label className={locationMode === "manual" ? "selected-mode" : undefined}><input type="radio" name="location-mode" checked={locationMode === "manual"} onChange={() => { setLocationMode("manual"); setGpsEnabled(false); }} />{appCopy.sections.location.manualMode}</label>
-              <label className={locationMode === "gps" ? "selected-mode" : undefined}><input type="radio" name="location-mode" checked={locationMode === "gps"} onChange={startGps} />{appCopy.sections.location.gpsMode}</label>
+            <legend>{appCopy.sections.location.modeLabel}</legend>
+            <div className="location-mode-options">
+            <label className={locationMode === "manual" ? "selected-mode" : undefined}><input type="radio" name="location-mode" checked={locationMode === "manual"} onChange={() => { setLocationMode("manual"); setGpsEnabled(false); }} />{appCopy.sections.location.manualMode}</label>
+            <label className={locationMode === "gps" ? "selected-mode" : undefined}><input type="radio" name="location-mode" checked={locationMode === "gps"} onChange={startGps} />{appCopy.sections.location.gpsMode}</label>
+            </div>
             </fieldset>
             <div id="manual-location" className="manual-grid">
               <label>

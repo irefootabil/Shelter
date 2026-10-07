@@ -39,6 +39,7 @@ describe("App", () => {
     expect(container.querySelector(".hero")).toBeNull();
     expect(container.querySelector(".shelter-results")?.closest(".panel")).toBeNull();
     expect(screen.getByRole("radio", { name: appCopy.sections.location.manualMode })).toBeChecked();
+    expect(container.querySelector(".location-mode-options")?.querySelectorAll('input[type="radio"]')).toHaveLength(2);
     expect(screen.getByLabelText(appCopy.actions.chooseCounty)).toBeEnabled();
     expect(screen.getByLabelText(appCopy.actions.chooseTown)).toBeDisabled();
     expect(screen.getByRole("link", { name: appCopy.status.offlineLabels.unavailable })).toHaveAttribute("href", "#install");

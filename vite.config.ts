@@ -29,6 +29,8 @@ export default defineConfig({
     },
   }],
   test: {
+    // Keep JSON-heavy suites within desktop and CI memory budgets.
+    maxWorkers: 2,
     environment: "jsdom",
     globals: true,
     setupFiles: "./src/test/setup.ts",

@@ -77,6 +77,80 @@ function worker(version: string, stores: CacheStore = new Map(), base = "/Shelte
 }
 
 describe("service worker release cache behavior", () => {
+  it.each(["/", "/Shelter/"])("preserves offline release A through interrupted B preparation and retry at %s", async (base) => {
+    const old = worker("old", undefined, base);
+    await old.event("install");
+    const update = worker("new", old.stores, base);
+    const download = update.network.getMockImplementation()!;
+    let interrupt!: (error: Error) => void;
+    const pendingAsset = new Promise<Response>((_resolve, reject) => { interrupt = reject; });
+    update.network.mockImplementation((input) =>
+      input === base + "assets/app-new.css" ? pendingAsset : download(input));
+    const installation = update.event("install");
+    const rejected = expect(installation).rejects.toThrow("connection interrupted");
+    await vi.waitFor(() => expect(update.network).toHaveBeenCalledWith(base + "assets/app-new.css"));
+    expect(update.stores.get(update.cacheName)?.has(origin + base + "index.html")).toBe(false);
+    expect(await update.ready()).toBe(false);
+    await update.event("message", { data: { type: "APPLY_UPDATE" } });
+    expect(update.skipWaiting).not.toHaveBeenCalled();
+
+    old.network.mockRejectedValue(new Error("offline"));
+    expect(await (await old.event("fetch", {
+      request: { url: origin + base, method: "GET", mode: "navigate" },
+    }))?.text()).toContain("app-old.js");
+    expect(await (await old.event("fetch", {
+      request: new Request(origin + base + "assets/app-old.js"),
+    }))?.text()).toBe("asset-old");
+    interrupt(new Error("connection interrupted"));
+    await rejected;
+    expect(update.stores.has(update.cacheName)).toBe(false);
+    expect(await old.ready()).toBe(true);
+
+    update.network.mockImplementation(download);
+    await update.event("install");
+    expect(await update.ready()).toBe(true);
+    expect(update.stores.has(old.cacheName)).toBe(true);
+    expect(update.skipWaiting).not.toHaveBeenCalled();
+    await update.event("message", { data: { type: "APPLY_UPDATE" } });
+    await update.event("activate");
+    expect(update.stores.has(old.cacheName)).toBe(false);
+    update.network.mockRejectedValue(new Error("offline"));
+    expect(await (await update.event("fetch", {
+      request: { url: origin + base, method: "GET", mode: "navigate" },
+    }))?.text()).toContain("app-new.js");
+    expect(await (await update.event("fetch", {
+      request: new Request(origin + base + "assets/app-new.js"),
+    }))?.text()).toBe("asset-new");
+  });
+
+  it.each(["/", "/Shelter/"])("does not claim first-load readiness during interruption and recovers on retry at %s", async (base) => {
+    const first = worker("first", undefined, base);
+    const download = first.network.getMockImplementation()!;
+    let interrupt!: (error: Error) => void;
+    const pendingAsset = new Promise<Response>((_resolve, reject) => { interrupt = reject; });
+    first.network.mockImplementation((input) =>
+      input === base + "assets/app-first.js" ? pendingAsset : download(input));
+    const installation = first.event("install");
+    const rejected = expect(installation).rejects.toThrow("first download interrupted");
+    await vi.waitFor(() => expect(first.network).toHaveBeenCalledWith(base + "assets/app-first.js"));
+    expect(await first.ready()).toBe(false);
+    expect(first.stores.get(first.cacheName)?.has(origin + base + "index.html")).toBe(false);
+    interrupt(new Error("first download interrupted"));
+    await rejected;
+    expect(first.stores.has(first.cacheName)).toBe(false);
+    expect(await first.ready()).toBe(false);
+    first.network.mockImplementation(download);
+    await first.event("install");
+    expect(await first.ready()).toBe(true);
+    first.network.mockRejectedValue(new Error("offline"));
+    expect(await (await first.event("fetch", {
+      request: { url: origin + base, method: "GET", mode: "navigate" },
+    }))?.text()).toContain("app-first.js");
+    expect(await (await first.event("fetch", {
+      request: new Request(origin + base + "assets/app-first.js"),
+    }))?.text()).toBe("asset-first");
+  });
+
   it.each(["/", "/Shelter/"])("installs and serves the complete shell and assets offline at %s", async (base) => {
     const w = worker("one", undefined, base);
     expect(await w.ready()).toBe(false);

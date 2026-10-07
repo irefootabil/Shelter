@@ -804,6 +804,17 @@ button.secondary-action:disabled {
   outline-offset: 3px;
 }
 
+@media (max-width: 22rem) {
+  .bottom-nav {
+    right: max(0.5rem, env(safe-area-inset-right));
+    left: max(0.5rem, env(safe-area-inset-left));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bottom-nav a {
+    padding-inline: 0;
+  }
+}
+
 @media (min-width: 42rem) {
   h1 {
     font-size: 3.5rem;

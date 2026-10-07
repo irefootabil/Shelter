@@ -79,6 +79,19 @@ export const appCopy = {
       manualCountyPlaceholder: "Selecteaza judetul",
       manualTownPlaceholder: "Selecteaza localitatea",
       manualSelection: "Selectie manuala",
+      privacy: {
+        title: "Confidentialitatea pozitiei",
+        retain: "Salveaza ultima pozitie pe acest dispozitiv",
+        retained: "O pozitie GPS poate fi salvata local pentru reutilizare timp de 15 minute.",
+        notRetained: "Pozitia GPS nu este salvata intre sesiuni.",
+        clear: "Sterge pozitia salvata",
+        scope: "Stergerea sau dezactivarea salvarii opreste GPS-ul. Selectia manuala si datele offline raman disponibile.",
+        feedback: {
+          cleared: "Pozitia salvata a fost stearsa. GPS oprit.",
+          updated: "Preferinta de salvare a fost actualizata.",
+          "storage-error": "Stocarea dispozitivului nu permite confirmarea salvarii sau stergerii. Reincearca; preferinta poate sa nu fie pastrata la redeschidere.",
+        },
+      },
     },
     install: {
       title: "Instalare si offline",

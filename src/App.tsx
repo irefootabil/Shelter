@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { appCopy } from "./content";
 import { EmergencyGuide } from "./components/EmergencyGuide";
 import { useNavigationInsets } from "./hooks/useNavigationInsets";
@@ -224,6 +225,22 @@ export function App() {
           ) : (
             <p className="quiet-note">{appCopy.sections.location.fallback}</p>
           )}
+          <details className="location-privacy">
+            <summary>{appCopy.sections.location.privacy.title}</summary>
+            <label className="retention-control">
+              <input type="checkbox" checked={location.retainLocation} onChange={(event) => {
+                location.setRetainLocation(event.target.checked);
+                if (!event.target.checked) { setGpsEnabled(false); setLocationMode("manual"); }
+              }} />
+              <span>{appCopy.sections.location.privacy.retain}</span>
+            </label>
+            <p className="quiet-note">{location.retainLocation ? appCopy.sections.location.privacy.retained : appCopy.sections.location.privacy.notRetained}</p>
+            <button type="button" className="secondary-action" title={appCopy.sections.location.privacy.clear} aria-label={appCopy.sections.location.privacy.clear} onClick={() => {
+              location.clearSavedLocation(); setGpsEnabled(false); setLocationMode("manual");
+            }}><Trash2 size={18} aria-hidden="true" /><span>{appCopy.sections.location.privacy.clear}</span></button>
+            <p className="quiet-note">{appCopy.sections.location.privacy.scope}</p>
+            <p role="status" aria-atomic="true">{location.privacyStatus === "idle" ? "" : appCopy.sections.location.privacy.feedback[location.privacyStatus]}</p>
+          </details>
         </section>
 
         <section id="nearby" className="panel shelter-panel" aria-labelledby="shelter-title">

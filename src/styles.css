@@ -858,3 +858,61 @@ button.secondary-action:disabled {
     scroll-behavior: auto;
   }
 }
+.location-privacy {
+  margin-top: 1rem;
+  border-top: 1px solid #ffffff2e;
+  padding-top: .75rem;
+}
+
+.location-privacy summary {
+  cursor: pointer;
+  min-height: 2.75rem;
+  align-content: center;
+  font-weight: 700;
+}
+
+.retention-control {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.retention-control input {
+  flex: 0 0 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: #b8f7d4;
+}
+
+.location-privacy .secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+  max-width: 100%;
+  padding: .6rem;
+}
+
+.location-privacy .secondary-action span {
+  min-width: min-content;
+  overflow-wrap: normal;
+}
+
+@media (max-width: 22rem) {
+  .location-privacy .secondary-action {
+    width: 2.75rem;
+    min-width: 0;
+    height: 2.75rem;
+    padding: .5rem;
+  }
+  .location-privacy .secondary-action span { display: none; }
+}
+
+.location-privacy summary:focus-visible,
+.retention-control input:focus-visible {
+  outline: 3px solid #b8f7d4;
+  outline-offset: 3px;
+}

@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LOCATION_CACHE_KEY, useLocation, type UseLocationOptions } from "./useLocation";
+import { LOCATION_CACHE_KEY, LOCATION_RETENTION_KEY, useLocation, type UseLocationOptions } from "./useLocation";
 
 const NOW = 1_700_000_000_000;
 const bucharest = { latitude: 44.4268, longitude: 26.1025 };
@@ -24,6 +24,102 @@ function renderUseLocation(options: UseLocationOptions = {}) {
 }
 
 describe("useLocation", () => {
+  it("clears memory and storage, rejects late callbacks, and preserves unrelated offline state", async () => {
+    const geo = installGeolocationMock();
+    localStorage.setItem("offline-preparation", "keep");
+    const { result, rerender } = renderHook(({ retryKey }) => useLocation({ now: fixedNow, retryKey }), { initialProps: { retryKey: 0 } });
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalledTimes(1));
+    act(() => geo.emitSuccess(createPosition(bucharest, NOW, 10)));
+    expect(result.current.cachedLocation).not.toBeNull();
+    act(() => result.current.clearSavedLocation());
+    act(() => geo.emitSuccess(createPosition(clujNapoca, NOW, 10)));
+    expect(result.current.gpsLocation).toBeNull();
+    expect(result.current.cachedLocation).toBeNull();
+    expect(result.current.effectiveLocation).toBeNull();
+    expect(localStorage.getItem(LOCATION_CACHE_KEY)).toBeNull();
+    expect(localStorage.getItem("offline-preparation")).toBe("keep");
+    expect(result.current.privacyStatus).toBe("cleared");
+    expect(geo.clearWatch).toHaveBeenCalledWith(42);
+    rerender({ retryKey: 1 });
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalledTimes(2));
+    act(() => geo.emitSuccess(createPosition(clujNapoca, NOW, 10)));
+    expect(result.current.gpsLocation?.coordinate).toEqual(clujNapoca);
+  });
+
+  it("persists opt-out across remounts while allowing deliberate GPS use without saving", async () => {
+    const geo = installGeolocationMock();
+    const first = renderUseLocation({ enabled: false });
+    act(() => first.result.current.setRetainLocation(false));
+    expect(localStorage.getItem(LOCATION_RETENTION_KEY)).toBe("false");
+    first.unmount();
+    const { result } = renderUseLocation();
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalledTimes(1));
+    act(() => geo.emitSuccess(createPosition(bucharest, NOW, 10)));
+    expect(result.current.retainLocation).toBe(false);
+    expect(result.current.gpsLocation).not.toBeNull();
+    expect(result.current.cachedLocation).toBeNull();
+    expect(localStorage.getItem(LOCATION_CACHE_KEY)).toBeNull();
+    act(() => result.current.setRetainLocation(true));
+    act(() => geo.emitSuccess(createPosition(bucharest, NOW, 10)));
+    expect(localStorage.getItem(LOCATION_CACHE_KEY)).not.toBeNull();
+  });
+
+  it("invalidates pending permission queries before they can start a watch", async () => {
+    const geo = installGeolocationMock();
+    let resolve!: (value: { state: string }) => void;
+    setNavigatorValue("permissions", { query: vi.fn(() => new Promise((done) => { resolve = done; })) });
+    const { result } = renderUseLocation();
+    act(() => result.current.clearSavedLocation());
+    await act(async () => resolve({ state: "granted" }));
+    expect(geo.watchPosition).not.toHaveBeenCalled();
+  });
+
+  it("reports blocked deletion honestly and clears memory without breaking manual fallback", async () => {
+    writeCachedLocation({ ...bucharest, timestamp: NOW, accuracyMeters: 10 });
+    const { result } = renderUseLocation({ manualLocation: { coordinate: clujNapoca } });
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => { throw new Error("blocked"); });
+    act(() => result.current.clearSavedLocation());
+    expect(result.current.cachedLocation).toBeNull();
+    expect(result.current.effectiveLocation?.coordinate).toEqual(clujNapoca);
+    expect(result.current.privacyStatus).toBe("storage-error");
+  });
+
+  it("disables saving immediately even when the preference cannot persist", async () => {
+    const geo = installGeolocationMock();
+    const { result } = renderUseLocation();
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalledTimes(1));
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked"); });
+    act(() => result.current.setRetainLocation(false));
+    act(() => geo.emitSuccess(createPosition(bucharest, NOW, 10)));
+    expect(result.current.retainLocation).toBe(false);
+    expect(result.current.gpsLocation).toBeNull();
+    expect(result.current.privacyStatus).toBe("storage-error");
+    act(() => result.current.setRetainLocation(true));
+    expect(result.current.retainLocation).toBe(false);
+  });
+
+  it("fails closed on inaccessible or malformed preferences", () => {
+    localStorage.setItem(LOCATION_RETENTION_KEY, "broken-json");
+    const first = renderUseLocation({ enabled: false });
+    expect(first.result.current.retainLocation).toBe(false);
+    first.unmount();
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked"); });
+    const second = renderUseLocation({ enabled: false });
+    expect(second.result.current.retainLocation).toBe(false);
+  });
+
+  it("honors opt-out from another tab and rejects its old watch readings", async () => {
+    const geo = installGeolocationMock();
+    const { result } = renderUseLocation();
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalledTimes(1));
+    act(() => geo.emitSuccess(createPosition(bucharest, NOW, 10)));
+    localStorage.setItem(LOCATION_RETENTION_KEY, "false");
+    act(() => window.dispatchEvent(new StorageEvent("storage", { key: LOCATION_RETENTION_KEY, newValue: "false" })));
+    act(() => geo.emitSuccess(createPosition(clujNapoca, NOW, 10)));
+    expect(result.current.retainLocation).toBe(false);
+    expect(result.current.gpsLocation).toBeNull();
+    expect(localStorage.getItem(LOCATION_CACHE_KEY)).toBeNull();
+  });
   beforeEach(() => {
     window.localStorage.clear();
     setNavigatorValue("geolocation", undefined);

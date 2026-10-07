@@ -33,6 +33,10 @@ export type UseLocationOptions = {
 };
 
 export type UseLocationResult = {
+  retainLocation: boolean;
+  privacyStatus: "idle" | "cleared" | "updated" | "storage-error";
+  setRetainLocation: (retain: boolean) => void;
+  clearSavedLocation: () => void;
   positionAgeSeconds: number | null;
   status: LocationStatus;
   permissionState: LocationPermissionState;
@@ -57,6 +61,7 @@ const DEFAULT_WATCH_OPTIONS: PositionOptions = {
   timeout: 10_000,
 };
 const LOCATION_CACHE_KEY = "adapost-urgenta-romania:last-known-location:v1";
+export const LOCATION_RETENTION_KEY = "adapost-urgenta-romania:retain-location:v1";
 const SMOOTHING_ALPHA = 0.35;
 const GEOLOCATION_PERMISSION_DENIED = 1;
 
@@ -71,10 +76,16 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
     watchOptions = DEFAULT_WATCH_OPTIONS,
   } = options;
   const [currentTime, setCurrentTime] = useState(now);
+  const [retainLocation, setRetention] = useState(readRetention);
+  const retentionRef = useRef(retainLocation);
+  const suppressCacheRef = useRef(!retainLocation);
+  const watchGeneration = useRef(0);
+  const stopWatchRef = useRef<(() => void) | null>(null);
+  const [privacyStatus, setPrivacyStatus] = useState<UseLocationResult["privacyStatus"]>("idle");
   const [permissionState, setPermissionState] = useState<LocationPermissionState>("unsupported");
   const [gpsSnapshot, setGpsLocation] = useState<LocationSnapshot | null>(null);
   const [cachedSnapshot, setCachedLocation] = useState<LocationSnapshot | null>(() =>
-    readCachedLocation(currentTime, cacheMaxAgeMs),
+    retainLocation ? readCachedLocation(currentTime, cacheMaxAgeMs) : null,
   );
   const gpsLocation = useMemo(() => refreshFreshness(gpsSnapshot, currentTime, cacheMaxAgeMs), [gpsSnapshot, currentTime, cacheMaxAgeMs]);
   const cachedLocation = useMemo(() => refreshFreshness(cachedSnapshot, currentTime, cacheMaxAgeMs), [cachedSnapshot, currentTime, cacheMaxAgeMs]);
@@ -97,8 +108,53 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
   };
 
   useEffect(() => {
-    setCachedLocation(readCachedLocation(now(), cacheMaxAgeMs));
+    if (!suppressCacheRef.current) setCachedLocation(readCachedLocation(now(), cacheMaxAgeMs));
   }, [cacheMaxAgeMs, now]);
+
+  function forgetPosition(): boolean {
+    watchGeneration.current += 1;
+    stopWatchRef.current?.();
+    suppressCacheRef.current = true;
+    fallbackRef.current.cachedLocation = null;
+    setGpsLocation(null);
+    setCachedLocation(null);
+    setStatus("idle");
+    setErrorMessage(null);
+    return removeFromStorage(LOCATION_CACHE_KEY);
+  }
+
+  function clearSavedLocation(): void {
+    setPrivacyStatus(forgetPosition() ? "cleared" : "storage-error");
+  }
+
+  function setRetainLocation(retain: boolean): void {
+    const persisted = writeJsonToStorage(LOCATION_RETENTION_KEY, retain);
+    // Disabling is immediate even when persistence is blocked; enabling fails closed.
+    retentionRef.current = retain && persisted;
+    setRetention(retentionRef.current);
+    const removed = retentionRef.current ? true : forgetPosition();
+    setPrivacyStatus(persisted && removed ? "updated" : "storage-error");
+  }
+
+  useEffect(() => {
+    if (!retentionRef.current && !removeFromStorage(LOCATION_CACHE_KEY)) setPrivacyStatus("storage-error");
+    const onStorage = (event: StorageEvent) => {
+      try {
+        if (event.storageArea !== null && event.storageArea !== window.localStorage) return;
+      } catch {
+        return;
+      }
+      if (event.key === LOCATION_RETENTION_KEY || event.key === null) {
+        retentionRef.current = readRetention();
+        setRetention(retentionRef.current);
+        if (!retentionRef.current) clearSavedLocation();
+      } else if (event.key === LOCATION_CACHE_KEY && event.newValue === null) {
+        clearSavedLocation();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   useEffect(() => {
     const refresh = () => setCurrentTime(now());
@@ -127,8 +183,16 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
     }
 
     let isActive = true;
+    const generation = watchGeneration.current;
+    const active = () => isActive && generation === watchGeneration.current;
     let watchId: number | null = null;
     let previousSmoothedCoordinate: Coordinate | null = null;
+    const stop = () => {
+      isActive = false;
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    };
+    stopWatchRef.current = stop;
 
     setStatus(getFallbackStatus(fallbackRef.current.cachedLocation, fallbackRef.current.manualLocation) ?? "loading");
     setErrorMessage(null);
@@ -136,7 +200,7 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
     async function startWatch(): Promise<void> {
       const state = await queryPermissionState();
 
-      if (!isActive) {
+      if (!active()) {
         return;
       }
 
@@ -149,7 +213,7 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
 
       watchId = navigator.geolocation.watchPosition(
         (position) => {
-          if (!isActive) {
+          if (!active()) {
             return;
           }
 
@@ -182,13 +246,19 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
 
           previousSmoothedCoordinate = smoothedCoordinate;
           setGpsLocation(nextLocation);
-          setCachedLocation({ ...nextLocation, source: "cache" });
           setStatus("ready");
           setErrorMessage(null);
-          writeCachedLocation(nextLocation);
+          if (retentionRef.current) {
+            if (writeCachedLocation(nextLocation)) {
+              suppressCacheRef.current = false;
+              setCachedLocation({ ...nextLocation, source: "cache" });
+            } else {
+              setPrivacyStatus("storage-error");
+            }
+          }
         },
         (error) => {
-          if (!isActive) {
+          if (!active()) {
             return;
           }
 
@@ -209,15 +279,16 @@ export function useLocation(options: UseLocationOptions = {}): UseLocationResult
     void startWatch();
 
     return () => {
-      isActive = false;
-
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-      }
+      stop();
+      if (stopWatchRef.current === stop) stopWatchRef.current = null;
     };
   }, [enabled, mode, retryKey, now, watchOptions]);
 
   return {
+    retainLocation,
+    privacyStatus,
+    setRetainLocation,
+    clearSavedLocation,
     positionAgeSeconds: mode === "manual" || (gpsLocation ?? cachedLocation) === null ? null :
       Math.max(0, Math.floor((currentTime - (gpsLocation ?? cachedLocation)!.timestamp) / 1000)),
     status: mode === "manual" ? (manualLocation === null ? "idle" : "ready") :
@@ -268,8 +339,17 @@ function refreshFreshness(snapshot: LocationSnapshot | null, time: number, maxAg
   return snapshot.isStale === isStale ? snapshot : { ...snapshot, isStale };
 }
 
-function writeCachedLocation(location: LocationSnapshot): void {
-  writeJsonToStorage(LOCATION_CACHE_KEY, {
+function readRetention(): boolean {
+  try {
+    const value = window.localStorage.getItem(LOCATION_RETENTION_KEY);
+    return value === null || JSON.parse(value) === true;
+  } catch {
+    return false;
+  }
+}
+
+function writeCachedLocation(location: LocationSnapshot): boolean {
+  return writeJsonToStorage(LOCATION_CACHE_KEY, {
     latitude: location.coordinate.latitude,
     longitude: location.coordinate.longitude,
     timestamp: location.timestamp,

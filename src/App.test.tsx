@@ -6,6 +6,21 @@ import * as locationModule from "./hooks/useLocation";
 import * as rankingModule from "./lib/ranking";
 
 describe("App", () => {
+  it("keeps manual results and offline preparation when changing location privacy", async () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "CJ" } });
+    fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Huedin" } });
+    fireEvent.click(screen.getByText(appCopy.sections.location.privacy.title));
+    const checkbox = screen.getByRole("checkbox", { name: appCopy.sections.location.privacy.retain });
+    expect(checkbox).toBeChecked();
+    fireEvent.click(checkbox);
+    expect(checkbox).not.toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: appCopy.sections.location.privacy.clear }));
+    expect(screen.getByLabelText(appCopy.actions.chooseTown)).toHaveValue("Huedin");
+    expect(screen.getByLabelText(appCopy.sections.shelter.localListLabel).querySelectorAll("article")).toHaveLength(4);
+    expect(screen.getByText(appCopy.sections.location.privacy.feedback.cleared)).toHaveAttribute("role", "status");
+    expect(screen.getByRole("heading", { name: appCopy.sections.install.title })).toBeInTheDocument();
+  });
   beforeEach(() => {
     localStorage.clear();
     unsetDeviceOrientationEvent();
@@ -25,6 +40,7 @@ describe("App", () => {
       positionAgeSeconds: 0, status: "ready", permissionState: "granted",
       gpsLocation: snapshot, cachedLocation: null, manualLocation: null,
       effectiveLocation: snapshot, errorMessage: null,
+      retainLocation: true, privacyStatus: "idle", setRetainLocation: vi.fn(), clearSavedLocation: vi.fn(),
     };
     const location = vi.spyOn(locationModule, "useLocation").mockReturnValue(result);
     const rank = vi.spyOn(rankingModule, "rankShelters");
@@ -240,5 +256,6 @@ function gpsResult(): locationModule.UseLocationResult {
   };
   return { positionAgeSeconds: 0, status: "ready", permissionState: "granted",
     gpsLocation: snapshot, cachedLocation: null, manualLocation: null,
-    effectiveLocation: snapshot, errorMessage: null };
+    effectiveLocation: snapshot, errorMessage: null,
+    retainLocation: true, privacyStatus: "idle", setRetainLocation: vi.fn(), clearSavedLocation: vi.fn() };
 }

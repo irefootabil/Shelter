@@ -55,12 +55,15 @@ export function useNavigationInsets() {
     elements.forEach((element) => { if (element) observer?.observe(element); });
     window.addEventListener("resize", measure);
     document.addEventListener("focusin", scheduleFocusReveal);
+    // React may reflow status text after a selection without moving focus.
+    document.addEventListener("change", scheduleFocusReveal);
     window.visualViewport?.addEventListener("resize", scheduleFocusReveal);
     window.visualViewport?.addEventListener("scroll", scheduleFocusReveal);
     return () => {
       observer?.disconnect();
       window.removeEventListener("resize", measure);
       document.removeEventListener("focusin", scheduleFocusReveal);
+      document.removeEventListener("change", scheduleFocusReveal);
       window.visualViewport?.removeEventListener("resize", scheduleFocusReveal);
       window.visualViewport?.removeEventListener("scroll", scheduleFocusReveal);
       if (focusFrame !== null) window.cancelAnimationFrame(focusFrame);

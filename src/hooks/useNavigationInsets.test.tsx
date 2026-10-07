@@ -5,7 +5,9 @@ import { useNavigationInsets } from "./useNavigationInsets";
 function Navigation() {
   const { headerRef, navigationRef } = useNavigationInsets();
   return <><header ref={headerRef}><a href="#main">Brand</a></header>
-    <main id="main"><details><summary>Guide group</summary></details></main>
+    <main id="main"><details><summary>Guide group</summary></details>
+      <select aria-label="Locality"><option value="">Choose locality</option>
+        <option value="selected">Selected locality</option></select></main>
     <nav ref={navigationRef}><a href="#main">Navigation</a></nav></>;
 }
 
@@ -80,6 +82,31 @@ describe("useNavigationInsets", () => {
     expect(cancel).toHaveBeenCalled();
     expect(remove).toHaveBeenCalledWith("resize", expect.any(Function));
     expect(remove).toHaveBeenCalledWith("scroll", expect.any(Function));
+  });
+
+  it("reveals an unchanged focused selector after a selection reflows content", () => {
+    const { view, scroll, flush, setTop } = setupFocusGeometry();
+    const selector = view.getByRole("combobox", { name: "Locality" });
+    setTop(700);
+    act(() => selector.focus());
+    flush();
+    expect(scroll).not.toHaveBeenCalled();
+
+    fireEvent.change(selector, { target: { value: "selected" } });
+    // Layout changes after the event, before the scheduled animation frame.
+    setTop(750);
+    flush();
+    expect(scroll).toHaveBeenCalledExactlyOnceWith({ top: 38, behavior: "instant" });
+    expect(selector).toHaveFocus();
+
+    scroll.mockClear();
+    setTop(600);
+    fireEvent.change(selector, { target: { value: "" } });
+    flush();
+    expect(scroll).not.toHaveBeenCalled();
+    const remove = vi.spyOn(document, "removeEventListener");
+    view.unmount();
+    expect(remove).toHaveBeenCalledWith("change", expect.any(Function));
   });
 
   it("measures both surfaces, updates after text reflow, and restores styles on cleanup", () => {

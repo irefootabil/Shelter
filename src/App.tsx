@@ -32,18 +32,9 @@ type ManualSelection = {
   town: string;
 };
 
-const navigationSections = [
-  { id: "search", destination: "search" },
-  { id: "nearby", destination: "search" },
-  { id: "emergency", destination: "emergency" },
-  { id: "install", destination: "install" },
-  { id: "status", destination: "status" },
-  { id: "source", destination: "status" },
-] as const;
-
 export function App() {
   const { headerRef, navigationRef } = useNavigationInsets();
-  const activeSection = useSectionNavigation(navigationSections, headerRef);
+  const { activeSection, navigate } = useSectionNavigation();
   const offlineStatus = useOfflineStatus();
   const networkOnline = useNetworkOnline();
   const [locationMode, setLocationMode] = useState<"gps" | "manual">("manual");
@@ -110,255 +101,263 @@ export function App() {
 
   return (
     <div className="app-frame">
-      <a className="skip-link" href="#top" onClick={() => document.getElementById("top")?.focus()}>
+      <a className="skip-link" href="#top" onClick={(event) => { event.preventDefault(); document.getElementById("top")?.focus(); }}>
         {appCopy.accessibility.skipToContent}
       </a>
       <header className="top-bar" ref={headerRef}>
-        <a className="brand-lockup" href="#top" aria-label={appCopy.productLabel}>
+        <a className="brand-lockup" href="#search" onClick={(event) => { event.preventDefault(); navigate("search"); }} aria-label={appCopy.productLabel}>
           <span className="brand-mark" aria-hidden="true">
             A
           </span>
           <span>{appCopy.productLabel}</span>
         </a>
-        <a className="readiness-link" href="#install" aria-label={appCopy.status.offlineLabels[offlineStatus]}><span className="network-pill" role="status">{appCopy.status.offlineLabels[offlineStatus]}</span></a>
+        <a className="readiness-link" href="#install" onClick={(event) => { event.preventDefault(); navigate("install"); }} aria-label={appCopy.status.offlineLabels[offlineStatus]}><span className="network-pill" role="status">{appCopy.status.offlineLabels[offlineStatus]}</span></a>
       </header>
 
       <main id="top" className="app-shell" tabIndex={-1}>
-        <section id="search" className="location-panel" aria-labelledby="app-title">
-          <h1 id="app-title">{appCopy.title}</h1>
-          <fieldset className="location-modes">
-            <legend>{appCopy.sections.location.modeLabel}</legend>
-            <label className={locationMode === "manual" ? "selected-mode" : undefined}><input type="radio" name="location-mode" checked={locationMode === "manual"} onChange={() => { setLocationMode("manual"); setGpsEnabled(false); }} />{appCopy.sections.location.manualMode}</label>
-            <label className={locationMode === "gps" ? "selected-mode" : undefined}><input type="radio" name="location-mode" checked={locationMode === "gps"} onChange={startGps} />{appCopy.sections.location.gpsMode}</label>
-          </fieldset>
-          <div id="manual-location" className="manual-grid">
-            <label>
-              <span>{appCopy.actions.chooseCounty}</span>
-              <select id="manual-county" value={manualSelection.countyId} onChange={(event) => updateCounty(event.target.value)}>
-                <option value="">{appCopy.sections.location.manualCountyPlaceholder}</option>
-                {shelterCountyGroups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{appCopy.actions.chooseTown}</span>
-              <select
-                value={manualSelection.town}
-                onChange={(event) => { setLocationMode("manual"); setGpsEnabled(false); setManualSelection((current) => ({ ...current, town: event.target.value })); }}
-                disabled={selectedCounty === null}
-              >
-                <option value="">{appCopy.sections.location.manualTownPlaceholder}</option>
-                {townOptions.map((town) => (
-                  <option key={town} value={town}>
-                    {town}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="control-row">
-            <button type="button" className="primary-action" onClick={startGps}>
-              <LocateFixed size={18} aria-hidden="true" />
-              {gpsEnabled ? appCopy.actions.retryLocation : appCopy.actions.enableLocation}
-            </button>
-            {gpsEnabled ? <button type="button" className="secondary-action" onClick={() => { setGpsEnabled(false); setLocationMode("manual"); }}>{appCopy.actions.stopLocation}</button> : null}
-            {locationMode === "gps" ? <a className="secondary-action" href="#manual-location">{appCopy.actions.manualSearch}</a> : null}
-          </div>
-          <div className="location-summary">
-            <p role="status" aria-atomic="true">
-              <strong>{sourceLabel}</strong>
-              <span>{statusLabel}</span>
-            </p>
-            {locationMode === "manual" || location.positionAgeSeconds === null ? null : <p>{appCopy.sections.location.age}: {location.positionAgeSeconds} {appCopy.sections.location.seconds}</p>}
-            {locationMode === "manual" ? null : <p>
-              {location.effectiveLocation?.accuracyMeters === null || location.effectiveLocation === null
-                ? appCopy.sections.location.noAccuracy
-                : `${appCopy.sections.location.accuracy}: ${formatDistance(location.effectiveLocation.accuracyMeters)}`}
-            </p>}
-          </div>
-          {manualSelection.town !== "" ? (
-            <p className="quiet-note">
-              {appCopy.sections.location.manualSelection}: {selectedCounty?.name}, {manualSelection.town}
-            </p>
-          ) : (
-            <p className="quiet-note">{appCopy.sections.location.fallback}</p>
-          )}
-          <details className="location-privacy">
-            <summary>{appCopy.sections.location.privacy.title}</summary>
-            <label className="retention-control">
-              <input type="checkbox" checked={location.retainLocation} onChange={(event) => {
-                location.setRetainLocation(event.target.checked);
-                if (!event.target.checked) { setGpsEnabled(false); setLocationMode("manual"); }
-              }} />
-              <span>{appCopy.sections.location.privacy.retain}</span>
-            </label>
-            <p className="quiet-note">{location.retainLocation ? appCopy.sections.location.privacy.retained : appCopy.sections.location.privacy.notRetained}</p>
-            <button type="button" className="secondary-action" title={appCopy.sections.location.privacy.clear} aria-label={appCopy.sections.location.privacy.clear} onClick={() => {
-              location.clearSavedLocation(); setGpsEnabled(false); setLocationMode("manual");
-            }}><Trash2 size={18} aria-hidden="true" /><span>{appCopy.sections.location.privacy.clear}</span></button>
-            <p className="quiet-note">{appCopy.sections.location.privacy.scope}</p>
-            <p role="status" aria-atomic="true">{location.privacyStatus === "idle" ? "" : appCopy.sections.location.privacy.feedback[location.privacyStatus]}</p>
-          </details>
-        </section>
-
-        <section id="nearby" className="shelter-panel" aria-labelledby="shelter-title">
-          <div className="section-heading">
-            <div>
-              <p className="card-kicker">{isManualSearch ? appCopy.sections.shelter.manualStatus : appCopy.sections.shelter.status}</p>
-              <h2 id="shelter-title">{isManualSearch ? appCopy.sections.shelter.manualTitle : appCopy.sections.shelter.title}</h2>
-            </div>
-            {isManualSearch ? null : <span className="distance-placeholder">{primaryDistance}</span>}
-          </div>
-          <p>{isManualSearch ? appCopy.sections.shelter.manualDescription : appCopy.sections.shelter.description}</p>
-          {isManualSearch ? <p className="quiet-note">{appCopy.sections.shelter.manualBrowsingNote}</p> : null}
-          {targetDirection === null ? null : (
-            <section className="compass-card" aria-labelledby="compass-title">
-              <div className="compass-heading-row">
-                <div>
-                  <p className="card-kicker">{appCopy.sections.compass.status}</p>
-                  <h3 id="compass-title">{appCopy.sections.compass.title}</h3>
-                </div>
-                <span className="bearing-chip">
-                  {appCopy.sections.compass.cardinalLabels[targetDirection.cardinalDirection]} ·{" "}
-                  {formatBearing(targetDirection.bearingDegrees)}
-                </span>
-              </div>
-              <p>
-                {appCopy.sections.compass.directionPrefix}{" "}
-                <strong>{appCopy.sections.compass.cardinalLabels[targetDirection.cardinalDirection]}</strong>
-              </p>
-              <div className="compass-status">
-                <p role="status" aria-atomic="true">
-                  <strong>{appCopy.sections.compass.fields.compass}</strong>
-                  <span>{getCompassStatusLabel(compass.status, compass.calibrationState)}</span>
-                </p>
-                {compass.headingDegrees === null || compass.cardinalDirection === null ? (
-                  <p>{appCopy.sections.compass.headingUnavailable}</p>
-                ) : (
-                  <p>
-                    {appCopy.sections.compass.headingPrefix}{" "}
-                    <strong>{appCopy.sections.compass.cardinalLabels[compass.cardinalDirection]}</strong> ·{" "}
-                    {formatBearing(compass.headingDegrees)}
-                  </p>
-                )}
-              </div>
-              {compass.canRequestPermission && compass.status === "permission-required" ? (
-                <button
-                  type="button"
-                  className="secondary-action compass-action"
-                  onClick={() => void compass.requestPermission()}
-                >
-                  {appCopy.actions.enableCompass}
-                </button>
-              ) : null}
-              <p className="quiet-note">{appCopy.sections.compass.secondaryAid}</p>
-            </section>
-          )}
-          <p className="visually-hidden" role="status" aria-atomic="true">
-            {ranking.primary === null ? "" : `${appCopy.sections.shelter.primaryLabel}: ${ranking.primary.shelter.address}`}
-          </p>
-          <div className="shelter-results">
-            <h3>{isManualSearch ? appCopy.sections.shelter.localListLabel : appCopy.sections.shelter.listTitle}</h3>
-            {isManualSearch ? (
-              <>
-                {manualShelters.some((shelter) => shelter.status === "functional" && !manualLocation?.suspectIds.has(shelter.id))
-                  ? null : <p>{appCopy.sections.shelter.noLocalFunctional}</p>}
-                <div className="nearest-list" aria-label={appCopy.sections.shelter.localListLabel}>
-                  {manualShelters.map((shelter) => (
-                    <ShelterResult shelter={shelter} key={shelter.id}
-                      suspectCoordinate={manualLocation?.suspectIds.has(shelter.id)} />
+        <div id="view-search" className="task-view" hidden={activeSection !== "search"} tabIndex={-1} role="region" aria-labelledby="app-title">
+          <section id="search" className="location-panel" aria-labelledby="app-title">
+            <h1 id="app-title">{appCopy.title}</h1>
+            <fieldset className="location-modes">
+              <legend>{appCopy.sections.location.modeLabel}</legend>
+              <label className={locationMode === "manual" ? "selected-mode" : undefined}><input type="radio" name="location-mode" checked={locationMode === "manual"} onChange={() => { setLocationMode("manual"); setGpsEnabled(false); }} />{appCopy.sections.location.manualMode}</label>
+              <label className={locationMode === "gps" ? "selected-mode" : undefined}><input type="radio" name="location-mode" checked={locationMode === "gps"} onChange={startGps} />{appCopy.sections.location.gpsMode}</label>
+            </fieldset>
+            <div id="manual-location" className="manual-grid">
+              <label>
+                <span>{appCopy.actions.chooseCounty}</span>
+                <select id="manual-county" value={manualSelection.countyId} onChange={(event) => updateCounty(event.target.value)}>
+                  <option value="">{appCopy.sections.location.manualCountyPlaceholder}</option>
+                  {shelterCountyGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
                   ))}
-                </div>
-                <a className="secondary-action" href="#manual-location"
-                  onClick={(event) => {
-                    // Native fragment navigation can override selector focus on older Chrome.
-                    event.preventDefault();
-                    document.getElementById("manual-county")?.focus();
-                  }}>
-                  {appCopy.actions.searchOtherLocality}
-                </a>
-              </>
-            ) : ranking.primary === null ? (
-              <p>{appCopy.sections.shelter.listPlaceholder}</p>
+                </select>
+              </label>
+              <label>
+                <span>{appCopy.actions.chooseTown}</span>
+                <select
+                  value={manualSelection.town}
+                  onChange={(event) => { setLocationMode("manual"); setGpsEnabled(false); setManualSelection((current) => ({ ...current, town: event.target.value })); }}
+                  disabled={selectedCounty === null}
+                >
+                  <option value="">{appCopy.sections.location.manualTownPlaceholder}</option>
+                  {townOptions.map((town) => (
+                    <option key={town} value={town}>
+                      {town}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="control-row">
+              <button type="button" className="primary-action" onClick={startGps}>
+                <LocateFixed size={18} aria-hidden="true" />
+                {gpsEnabled ? appCopy.actions.retryLocation : appCopy.actions.enableLocation}
+              </button>
+              {gpsEnabled ? <button type="button" className="secondary-action" onClick={() => { setGpsEnabled(false); setLocationMode("manual"); }}>{appCopy.actions.stopLocation}</button> : null}
+              {locationMode === "gps" ? <a className="secondary-action" href="#manual-location">{appCopy.actions.manualSearch}</a> : null}
+            </div>
+            <div className="location-summary">
+              <p role="status" aria-atomic="true">
+                <strong>{sourceLabel}</strong>
+                <span>{statusLabel}</span>
+              </p>
+              {locationMode === "manual" || location.positionAgeSeconds === null ? null : <p>{appCopy.sections.location.age}: {location.positionAgeSeconds} {appCopy.sections.location.seconds}</p>}
+              {locationMode === "manual" ? null : <p>
+                {location.effectiveLocation?.accuracyMeters === null || location.effectiveLocation === null
+                  ? appCopy.sections.location.noAccuracy
+                  : `${appCopy.sections.location.accuracy}: ${formatDistance(location.effectiveLocation.accuracyMeters)}`}
+              </p>}
+            </div>
+            {manualSelection.town !== "" ? (
+              <p className="quiet-note">
+                {appCopy.sections.location.manualSelection}: {selectedCounty?.name}, {manualSelection.town}
+              </p>
             ) : (
-              <>
-                <ShelterResult shelter={ranking.primary.shelter} distanceMeters={ranking.primary.distanceMeters} label={appCopy.sections.shelter.primaryLabel} />
-                <div className="nearest-list" aria-label={appCopy.sections.shelter.nearestLabel}>
-                  {ranking.nearest
-                    .filter((result) => result.shelter.id !== ranking.primary?.shelter.id)
-                    .slice(0, 3)
-                    .map((result) => (
-                      <ShelterResult shelter={result.shelter} distanceMeters={result.distanceMeters} key={result.shelter.id} />
-                    ))}
-                </div>
-              </>
+              <p className="quiet-note">{appCopy.sections.location.fallback}</p>
             )}
-          </div>
-        </section>
+          </section>
 
-        <EmergencyGuide />
-
-        <section id="install" className="install-panel" aria-labelledby="install-title">
-          <div>
-            <p className="card-kicker">{appCopy.sections.install.status}</p>
-            <h2 id="install-title">{appCopy.sections.install.title}</h2>
-            <p role="status">{appCopy.status.offlineDetails[offlineStatus]}</p>
-            <p>{networkOnline ? appCopy.status.connectionOnline : appCopy.status.connectionOffline}</p>
-            <p>{appCopy.sections.install.description}</p>
-          </div>
-          <ol className="install-checklist">
-            {appCopy.sections.install.steps.map((step) => <li key={step}>{step}</li>)}
-          </ol>
-          <p className="quiet-note">{appCopy.sections.install.caveat}</p>
-          {offlineStatus === "update-available" ? (
-            <button type="button" className="primary-action" onClick={applyOfflineUpdate}><Download size={18} aria-hidden="true" />{appCopy.actions.applyUpdate}</button>
-          ) : null}
-        </section>
-
-        <section id="status" className="status-grid" aria-labelledby="status-title">
-          <h2 id="status-title">{appCopy.status.title}</h2>
-          <div className="status-cards">
-            {statusItems.map((item) => (
-              <article className="status-card" key={item.label}>
-                <p className="card-kicker">{item.label}</p>
-                <p>{item === statusItems[0] ? appCopy.status.offlineDetails[offlineStatus] : item.text}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section id="source" className="source-panel" aria-labelledby="source-title">
-          <h2 id="source-title">{appCopy.sections.source.title}</h2>
-          <dl>
-            <div>
-              <dt>{appCopy.sections.source.reviewed}</dt>
-              <dd>{shelterDataSource.vendoredAt}</dd>
+          <section id="nearby" className="shelter-panel" aria-labelledby="shelter-title">
+            <div className="section-heading">
+              <div>
+                <p className="card-kicker">{isManualSearch ? appCopy.sections.shelter.manualStatus : appCopy.sections.shelter.status}</p>
+                <h2 id="shelter-title">{isManualSearch ? appCopy.sections.shelter.manualTitle : appCopy.sections.shelter.title}</h2>
+              </div>
+              {isManualSearch ? null : <span className="distance-placeholder">{primaryDistance}</span>}
             </div>
-            <div>
-              <dt>{appCopy.sections.source.official}</dt>
-              <dd>
-                <a href={shelterDataSource.officialPdfUrl}>{shelterDataSource.officialSourceName}</a>
-              </dd>
+            <p>{isManualSearch ? appCopy.sections.shelter.manualDescription : appCopy.sections.shelter.description}</p>
+            {isManualSearch ? <p className="quiet-note">{appCopy.sections.shelter.manualBrowsingNote}</p> : null}
+            {targetDirection === null ? null : (
+              <section className="compass-card" aria-labelledby="compass-title">
+                <div className="compass-heading-row">
+                  <div>
+                    <p className="card-kicker">{appCopy.sections.compass.status}</p>
+                    <h3 id="compass-title">{appCopy.sections.compass.title}</h3>
+                  </div>
+                  <span className="bearing-chip">
+                    {appCopy.sections.compass.cardinalLabels[targetDirection.cardinalDirection]} ·{" "}
+                    {formatBearing(targetDirection.bearingDegrees)}
+                  </span>
+                </div>
+                <p>
+                  {appCopy.sections.compass.directionPrefix}{" "}
+                  <strong>{appCopy.sections.compass.cardinalLabels[targetDirection.cardinalDirection]}</strong>
+                </p>
+                <div className="compass-status">
+                  <p role="status" aria-atomic="true">
+                    <strong>{appCopy.sections.compass.fields.compass}</strong>
+                    <span>{getCompassStatusLabel(compass.status, compass.calibrationState)}</span>
+                  </p>
+                  {compass.headingDegrees === null || compass.cardinalDirection === null ? (
+                    <p>{appCopy.sections.compass.headingUnavailable}</p>
+                  ) : (
+                    <p>
+                      {appCopy.sections.compass.headingPrefix}{" "}
+                      <strong>{appCopy.sections.compass.cardinalLabels[compass.cardinalDirection]}</strong> ·{" "}
+                      {formatBearing(compass.headingDegrees)}
+                    </p>
+                  )}
+                </div>
+                {compass.canRequestPermission && compass.status === "permission-required" ? (
+                  <button
+                    type="button"
+                    className="secondary-action compass-action"
+                    onClick={() => void compass.requestPermission()}
+                  >
+                    {appCopy.actions.enableCompass}
+                  </button>
+                ) : null}
+                <p className="quiet-note">{appCopy.sections.compass.secondaryAid}</p>
+              </section>
+            )}
+            <p className="visually-hidden" role="status" aria-atomic="true">
+              {ranking.primary === null ? "" : `${appCopy.sections.shelter.primaryLabel}: ${ranking.primary.shelter.address}`}
+            </p>
+            <div className="shelter-results">
+              <h3>{isManualSearch ? appCopy.sections.shelter.localListLabel : appCopy.sections.shelter.listTitle}</h3>
+              {isManualSearch ? (
+                <>
+                  {manualShelters.some((shelter) => shelter.status === "functional" && !manualLocation?.suspectIds.has(shelter.id))
+                    ? null : <p>{appCopy.sections.shelter.noLocalFunctional}</p>}
+                  <div className="nearest-list" aria-label={appCopy.sections.shelter.localListLabel}>
+                    {manualShelters.map((shelter) => (
+                      <ShelterResult shelter={shelter} key={shelter.id}
+                        suspectCoordinate={manualLocation?.suspectIds.has(shelter.id)} />
+                    ))}
+                  </div>
+                  <a className="secondary-action" href="#manual-location"
+                    onClick={(event) => {
+                      // Native fragment navigation can override selector focus on older Chrome.
+                      event.preventDefault();
+                      document.getElementById("manual-county")?.focus();
+                    }}>
+                    {appCopy.actions.searchOtherLocality}
+                  </a>
+                </>
+              ) : ranking.primary === null ? (
+                <p>{appCopy.sections.shelter.listPlaceholder}</p>
+              ) : (
+                <>
+                  <ShelterResult shelter={ranking.primary.shelter} distanceMeters={ranking.primary.distanceMeters} label={appCopy.sections.shelter.primaryLabel} />
+                  <div className="nearest-list" aria-label={appCopy.sections.shelter.nearestLabel}>
+                    {ranking.nearest
+                      .filter((result) => result.shelter.id !== ranking.primary?.shelter.id)
+                      .slice(0, 3)
+                      .map((result) => (
+                        <ShelterResult shelter={result.shelter} distanceMeters={result.distanceMeters} key={result.shelter.id} />
+                      ))}
+                  </div>
+                </>
+              )}
             </div>
+          </section>
+
+        </div>
+        <div id="view-emergency" className="task-view" hidden={activeSection !== "emergency"} tabIndex={-1} role="region" aria-labelledby="emergency-title">
+          <EmergencyGuide />
+        </div>
+
+        <div id="view-install" className="task-view" hidden={activeSection !== "install"} tabIndex={-1} role="region" aria-labelledby="install-title">
+          <section id="install" className="install-panel" aria-labelledby="install-title">
             <div>
-              <dt>{appCopy.sections.source.repository}</dt>
-              <dd>
-                <a href={shelterDataSource.referenceRepositoryUrl}>mhlnu/adaposturi</a>
-              </dd>
+              <p className="card-kicker">{appCopy.sections.install.status}</p>
+              <h2 id="install-title">{appCopy.sections.install.title}</h2>
+              <p role="status">{appCopy.status.offlineDetails[offlineStatus]}</p>
+              <p>{networkOnline ? appCopy.status.connectionOnline : appCopy.status.connectionOffline}</p>
+              <p>{appCopy.sections.install.description}</p>
             </div>
-          </dl>
-          <p>{appCopy.sections.source.disclaimer}</p>
-        </section>
+            <ol className="install-checklist">
+              {appCopy.sections.install.steps.map((step) => <li key={step}>{step}</li>)}
+            </ol>
+            <p className="quiet-note">{appCopy.sections.install.caveat}</p>
+            {offlineStatus === "update-available" ? (
+              <button type="button" className="primary-action" onClick={applyOfflineUpdate}><Download size={18} aria-hidden="true" />{appCopy.actions.applyUpdate}</button>
+            ) : null}
+          </section>
+
+        </div>
+        <div id="view-status" className="task-view" hidden={activeSection !== "status"} tabIndex={-1} role="region" aria-labelledby="status-title">
+          <section id="status" className="status-grid" aria-labelledby="status-title">
+            <h2 id="status-title">{appCopy.status.title}</h2>
+            <div className="status-cards">
+              {statusItems.map((item) => (
+                <article className="status-card" key={item.label}>
+                  <p className="card-kicker">{item.label}</p>
+                  <p>{item === statusItems[0] ? appCopy.status.offlineDetails[offlineStatus] : item.text}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section id="source" className="source-panel" aria-labelledby="source-title">
+            <details className="location-privacy">
+              <summary>{appCopy.sections.location.privacy.title}</summary>
+              <label className="retention-control">
+                <input type="checkbox" checked={location.retainLocation} onChange={(event) => {
+                  location.setRetainLocation(event.target.checked);
+                  if (!event.target.checked) { setGpsEnabled(false); setLocationMode("manual"); }
+                }} />
+                <span>{appCopy.sections.location.privacy.retain}</span>
+              </label>
+              <p className="quiet-note">{location.retainLocation ? appCopy.sections.location.privacy.retained : appCopy.sections.location.privacy.notRetained}</p>
+              <button type="button" className="secondary-action" title={appCopy.sections.location.privacy.clear} aria-label={appCopy.sections.location.privacy.clear} onClick={() => {
+                location.clearSavedLocation(); setGpsEnabled(false); setLocationMode("manual");
+              }}><Trash2 size={18} aria-hidden="true" /><span>{appCopy.sections.location.privacy.clear}</span></button>
+              <p className="quiet-note">{appCopy.sections.location.privacy.scope}</p>
+              <p role="status" aria-atomic="true">{location.privacyStatus === "idle" ? "" : appCopy.sections.location.privacy.feedback[location.privacyStatus]}</p>
+            </details>
+            <h2 id="source-title">{appCopy.sections.source.title}</h2>
+            <dl>
+              <div>
+                <dt>{appCopy.sections.source.reviewed}</dt>
+                <dd>{shelterDataSource.vendoredAt}</dd>
+              </div>
+              <div>
+                <dt>{appCopy.sections.source.official}</dt>
+                <dd>
+                  <a href={shelterDataSource.officialPdfUrl}>{shelterDataSource.officialSourceName}</a>
+                </dd>
+              </div>
+              <div>
+                <dt>{appCopy.sections.source.repository}</dt>
+                <dd>
+                  <a href={shelterDataSource.referenceRepositoryUrl}>mhlnu/adaposturi</a>
+                </dd>
+              </div>
+            </dl>
+            <p>{appCopy.sections.source.disclaimer}</p>
+          </section>
+        </div>
       </main>
 
       <nav className="bottom-nav" ref={navigationRef} aria-label={appCopy.navigation.primaryLabel}>
-        <a href="#search" aria-current={activeSection === "search" ? "location" : undefined}><Search size={18} aria-hidden="true" />{appCopy.navigation.search}</a>
-        <a href="#install" aria-current={activeSection === "install" ? "location" : undefined}><Download size={18} aria-hidden="true" />{appCopy.navigation.install}</a>
-        <a href="#status" aria-current={activeSection === "status" ? "location" : undefined}><Info size={18} aria-hidden="true" />{appCopy.navigation.status}</a>
-        <a href="#emergency" aria-current={activeSection === "emergency" ? "location" : undefined}><ShieldAlert size={18} aria-hidden="true" />{appCopy.navigation.emergency}</a>
+        <a href="#search" onClick={(event) => { event.preventDefault(); navigate("search"); }} aria-current={activeSection === "search" ? "page" : undefined}><Search size={18} aria-hidden="true" />{appCopy.navigation.search}</a>
+        <a href="#emergency" onClick={(event) => { event.preventDefault(); navigate("emergency"); }} aria-current={activeSection === "emergency" ? "page" : undefined}><ShieldAlert size={18} aria-hidden="true" />{appCopy.navigation.emergency}</a>
+        <a href="#install" onClick={(event) => { event.preventDefault(); navigate("install"); }} aria-current={activeSection === "install" ? "page" : undefined}><Download size={18} aria-hidden="true" />{appCopy.navigation.install}</a>
+        <a href="#status" onClick={(event) => { event.preventDefault(); navigate("status"); }} aria-current={activeSection === "status" ? "page" : undefined}><Info size={18} aria-hidden="true" />{appCopy.navigation.status}</a>
       </nav>
     </div>
   );

@@ -18,6 +18,7 @@ export function useNavigationInsets() {
       focusFrame = null;
       const focused = document.activeElement;
       if (!(focused instanceof HTMLElement) || !focused.closest("main")) return;
+      if (focused.tagName === "MAIN" || focused.classList.contains("task-view")) return;
 
       const viewport = window.visualViewport;
       const viewportTop = viewport?.offsetTop ?? 0;

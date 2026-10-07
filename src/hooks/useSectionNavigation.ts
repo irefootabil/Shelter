@@ -1,50 +1,55 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
-type Section = { id: string; destination: string };
+export type AppView = "search" | "emergency" | "install" | "status";
 
-export function useSectionNavigation(sections: readonly Section[], headerRef: RefObject<HTMLElement | null>) {
-  const [activeSection, setActiveSection] = useState(sections[0].destination);
+function readView(): AppView {
+  const fragment = window.location.hash.slice(1);
+  if (fragment === "emergency" || fragment === "install" || fragment === "status") return fragment;
+  if (fragment === "source") return "status";
+  return "search";
+}
 
-  useEffect(() => {
-    let frame: number | null = null;
+export function useSectionNavigation() {
+  const [activeSection, setActiveSection] = useState<AppView>(readView);
+  const current = useRef(activeSection);
+  const positions = useRef<Partial<Record<AppView, number>>>({});
+  const firstRender = useRef(true);
 
-    function measure() {
-      frame = null;
-      const rootFontSize = Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
-      const threshold = (headerRef.current?.getBoundingClientRect().bottom ?? 0) + rootFontSize + 8;
-      let destination = sections[0].destination;
-      for (const section of sections) {
-        const rect = document.getElementById(section.id)?.getBoundingClientRect();
-        if (rect && rect.height > 0 && rect.top <= threshold) destination = section.destination;
-      }
-      // The final section may not reach the header when the page ends sooner.
-      if (window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
-        destination = sections[sections.length - 1].destination;
-      }
-      setActiveSection(destination);
+  useLayoutEffect(() => {
+    const previousRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    function update() {
+      const next = readView();
+      if (next === current.current) return;
+      positions.current[current.current] = window.scrollY;
+      current.current = next;
+      setActiveSection(next);
     }
-
-    function schedule() {
-      if (frame === null) frame = window.requestAnimationFrame(measure);
-    }
-
-    measure();
-    window.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule);
-    window.addEventListener("hashchange", schedule);
-    // Expanded details and search results can move sections without a scroll event.
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
-    const main = document.querySelector("main");
-    if (main) observer?.observe(main);
-    if (headerRef.current) observer?.observe(headerRef.current);
+    window.addEventListener("hashchange", update);
+    window.addEventListener("popstate", update);
     return () => {
-      window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
-      window.removeEventListener("hashchange", schedule);
-      observer?.disconnect();
-      if (frame !== null) window.cancelAnimationFrame(frame);
+      window.history.scrollRestoration = previousRestoration;
+      window.removeEventListener("hashchange", update);
+      window.removeEventListener("popstate", update);
     };
-  }, [sections, headerRef]);
+  }, []);
 
-  return activeSection;
+  useLayoutEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    document.getElementById(`view-${activeSection}`)?.focus({ preventScroll: true });
+    window.scrollTo({ top: positions.current[activeSection] ?? 0, behavior: "instant" });
+  }, [activeSection]);
+
+  function navigate(view: AppView) {
+    if (view === current.current) return;
+    positions.current[current.current] = window.scrollY;
+    window.history.pushState(null, "", `#${view}`);
+    current.current = view;
+    setActiveSection(view);
+  }
+
+  return { activeSection, navigate };
 }

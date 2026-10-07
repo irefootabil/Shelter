@@ -7,12 +7,35 @@ import * as rankingModule from "./lib/ranking";
 import * as offlineModule from "./registerServiceWorker";
 
 describe("App", () => {
+  it("preserves a manual search across all views without starting GPS", () => {
+    const original = Object.getOwnPropertyDescriptor(navigator, "geolocation");
+    const watchPosition = vi.fn();
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: { watchPosition } });
+    try {
+      render(<App />);
+      fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "CJ" } });
+      fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Huedin" } });
+      const nav = within(screen.getByRole("navigation"));
+      for (const name of [appCopy.navigation.emergency, appCopy.navigation.install, appCopy.navigation.status]) {
+        fireEvent.click(nav.getByRole("link", { name }));
+        expect(screen.queryByRole("combobox")).toBeNull();
+        expect(document.querySelectorAll(".task-view:not([hidden])")).toHaveLength(1);
+      }
+      fireEvent.click(nav.getByRole("link", { name: appCopy.navigation.search }));
+      expect(screen.getByLabelText(appCopy.actions.chooseTown)).toHaveValue("Huedin");
+      expect(screen.getByLabelText(appCopy.sections.shelter.localListLabel).querySelectorAll("article")).toHaveLength(4);
+      expect(watchPosition).not.toHaveBeenCalled();
+    } finally {
+      if (original) Object.defineProperty(navigator, "geolocation", original);
+      else Reflect.deleteProperty(navigator, "geolocation");
+    }
+  });
   it("puts labeled search controls first, with truthful readiness linked to preparation", () => {
     const { container } = render(<App />);
     const main = screen.getByRole("main");
-    expect(main.firstElementChild).toBe(screen.getByRole("region", { name: appCopy.title }));
+    expect(main.firstElementChild).toHaveAttribute("id", "view-search");
     const sections = [...main.children].map((element) => element.id);
-    expect(sections).toEqual(["search", "nearby", "emergency", "install", "status", "source"]);
+    expect(sections).toEqual(["view-search", "view-emergency", "view-install", "view-status"]);
     expect(container.querySelector(".hero")).toBeNull();
     expect(container.querySelector(".shelter-results")?.closest(".panel")).toBeNull();
     expect(screen.getByRole("radio", { name: appCopy.sections.location.manualMode })).toBeChecked();
@@ -21,9 +44,10 @@ describe("App", () => {
     expect(screen.getByRole("link", { name: appCopy.status.offlineLabels.unavailable })).toHaveAttribute("href", "#install");
     const nav = within(screen.getByRole("navigation"));
     expect(nav.getAllByRole("link").map((link) => link.textContent)).toEqual([
-      appCopy.navigation.search, appCopy.navigation.install, appCopy.navigation.status, appCopy.navigation.emergency,
+      appCopy.navigation.search, appCopy.navigation.emergency, appCopy.navigation.install, appCopy.navigation.status,
     ]);
-    expect(nav.getByRole("link", { name: appCopy.navigation.search })).toHaveAttribute("aria-current", "location");
+    expect(nav.getByRole("link", { name: appCopy.navigation.search })).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByRole("heading", { name: appCopy.sections.install.title })).toBeNull();
   });
 
   it("keeps a prepared update explicit and reachable below the search", () => {
@@ -32,6 +56,7 @@ describe("App", () => {
     render(<App />);
     expect(screen.getByRole("link", { name: appCopy.status.offlineLabels["update-available"] })).toHaveAttribute("href", "#install");
     expect(apply).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("link", { name: appCopy.navigation.install }));
     fireEvent.click(screen.getByRole("button", { name: appCopy.actions.applyUpdate }));
     expect(apply).toHaveBeenCalledOnce();
   });
@@ -62,6 +87,7 @@ describe("App", () => {
     render(<App />);
     fireEvent.change(screen.getByLabelText(appCopy.actions.chooseCounty), { target: { value: "CJ" } });
     fireEvent.change(screen.getByLabelText(appCopy.actions.chooseTown), { target: { value: "Huedin" } });
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("link", { name: appCopy.navigation.status }));
     fireEvent.click(screen.getByText(appCopy.sections.location.privacy.title));
     const checkbox = screen.getByRole("checkbox", { name: appCopy.sections.location.privacy.retain });
     expect(checkbox).toBeChecked();
@@ -71,9 +97,12 @@ describe("App", () => {
     expect(screen.getByLabelText(appCopy.actions.chooseTown)).toHaveValue("Huedin");
     expect(screen.getByLabelText(appCopy.sections.shelter.localListLabel).querySelectorAll("article")).toHaveLength(4);
     expect(screen.getByText(appCopy.sections.location.privacy.feedback.cleared)).toHaveAttribute("role", "status");
-    expect(screen.getByRole("heading", { name: appCopy.sections.install.title })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("link", { name: appCopy.navigation.install }));
+    expect(screen.getByRole("heading", { name: appCopy.sections.install.title })).toBeVisible();
   });
   beforeEach(() => {
+    window.history.replaceState(null, "", "#search");
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     localStorage.clear();
     unsetDeviceOrientationEvent();
   });
@@ -121,9 +150,9 @@ describe("App", () => {
     expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: appCopy.navigation.primaryLabel })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: appCopy.title })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: appCopy.sections.install.title })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: appCopy.sections.install.title })).toBeNull();
     expect(screen.getByRole("heading", { name: appCopy.sections.shelter.title })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: appCopy.sections.emergency.title })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: appCopy.sections.emergency.title })).toBeNull();
   });
 
   it("provides a first keyboard skip link that focuses the main landmark", () => {
@@ -174,9 +203,10 @@ describe("App", () => {
   it("renders emergency actions and active location controls", () => {
     render(<App />);
 
-    expect(screen.getByRole("link", { name: appCopy.actions.call112 })).toHaveAttribute("href", "tel:112");
     expect(screen.getByRole("button", { name: appCopy.actions.enableLocation })).toBeEnabled();
     expect(screen.getByLabelText(appCopy.actions.chooseCounty)).toBeEnabled();
+    fireEvent.click(within(screen.getByRole("navigation")).getByRole("link", { name: appCopy.navigation.emergency }));
+    expect(screen.getByRole("link", { name: appCopy.actions.call112 })).toHaveAttribute("href", "tel:112");
     expect(screen.getByText(emergencyContent.numbers[0].action)).toBeInTheDocument();
   });
 

@@ -793,7 +793,7 @@ button.secondary-action:disabled {
   gap: 0.25rem;
 }
 
-.bottom-nav a[aria-current="location"] {
+.bottom-nav a[aria-current="page"] {
   background: #05251f;
   color: #8dffda;
   box-shadow: inset 0 -2px #8dffda;
@@ -924,6 +924,25 @@ button.secondary-action:disabled {
     scroll-behavior: auto;
   }
 }
+.task-view {
+  overflow-anchor: none;
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.task-view[hidden] { display: none; }
+.task-view:focus { outline: none; }
+.task-view > section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.source-panel .location-privacy {
+  border-top: 0;
+  padding-top: 0;
+  margin-bottom: 1rem;
+}
+
 .location-privacy {
   margin-top: 0;
   border-top: 1px solid #ffffff2e;
